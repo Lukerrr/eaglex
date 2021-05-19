@@ -1,0 +1,17 @@
+geometry_msgs/Vector3 pos
+geometry_msgs/Vector3 angles
+
+float64 lat
+float64 lon
+float64 heading
+int8 globalPos
+
+float32 groundDist
+float32 charge
+
+uint32 missionHash
+
+int8 ready
+int8 armed
+int8 offboard
+int8 systemState
