@@ -1,5 +1,5 @@
-#include "Framework/Communicator.h"
-#include "Framework/Log.h"
+#include "framework/Communicator.h"
+#include "framework/Log.h"
 
 #include "ros/ros.h"
 #include "eagle_comm/DroneState.h"
