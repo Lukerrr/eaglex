@@ -124,13 +124,13 @@ include_directories(
 
 ## Include messages
 include_directories(
-    ../../../msgs
+    src/msgs
 )
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-  src/Framework/CommandHandler.cpp
-  src/Framework/Communicator.cpp
+  src/framework/CommandHandler.cpp
+  src/framework/Communicator.cpp
 )
 
 ## Add cmake target dependencies of the library
