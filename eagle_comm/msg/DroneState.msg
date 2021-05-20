@@ -6,10 +6,10 @@ float64 lon
 float64 heading
 int8 globalPos
 
-float32 groundDist
 float32 charge
 
 uint32 missionHash
+uint32 cloudSize
 
 int8 ready
 int8 armed

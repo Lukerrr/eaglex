@@ -1,6 +1,6 @@
 #pragma once
 
-#include <MsgTypes.h>
+#include "MsgTypes.h"
 
 struct CCommandHandler
 {

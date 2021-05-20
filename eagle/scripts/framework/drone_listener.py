@@ -28,10 +28,10 @@ class CDroneListener:
         state.angles.x = self.__movCtrl.rot.roll
         state.angles.y = self.__movCtrl.rot.pitch
         state.angles.z = self.__movCtrl.rot.yaw
-        state.groundDist = self.__movCtrl.height
         state.missionHash = self.__mission.hash
         state.charge = self.__batCharge
         state.systemState = systemState
+        state.cloudSize = 322
         state.armed = self.__movCtrl.simState.armed
         state.offboard = (self.__movCtrl.simState.mode == "OFFBOARD")
         self.__droneStatePub.publish(state)

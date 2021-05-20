@@ -12,8 +12,17 @@ enum ECmdType : EMsgType
 	CMD_STOP,
 	CMD_HEIGHT,
 	CMD_TOLERANCE,
-	
+	CMD_GET_CLOUD,
+
 	CMD_MISSION,
 
 	CMD_MAX,
+};
+
+enum ERspType : EMsgType
+{
+	RSP_DRONE_STATE = 0,
+	RSP_POINT_CLOUD,
+
+	RSP_MAX,
 };

@@ -75,25 +75,18 @@ void CCommunicator::Update()
     }
 }
 
-void CCommunicator::SendDroneState(SDroneState state)
+void CCommunicator::SendInternal(char* pData, int len)
 {
     if (!m_bIsValid || m_clSock == -1)
     {
         return;
     }
-
-    size_t dataSize = sizeof(SDroneState);
-    char *data = new char[dataSize];
-    memcpy(data, &state, dataSize);
-
-    if (send(m_clSock, data, dataSize, 0) == -1)
+    
+    if (send(m_clSock, pData, len, 0) == -1)
     {
         ROS_ERROR_NAMED(LOG_NAME, "Cannot send a state (%s). Closing connection...", strerror(errno));
-        
         Invalidate();
     }
-
-    delete[] data;
 }
 
 bool CCommunicator::Initialize()
