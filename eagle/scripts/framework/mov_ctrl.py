@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 
 import copy
@@ -9,8 +11,11 @@ from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import Range
 from mavros_msgs.msg import PositionTarget
 from mavros_msgs.msg import State
+from mavros_msgs.msg import ParamValue
 from mavros_msgs.srv import CommandBool
 from mavros_msgs.srv import SetMode
+from mavros_msgs.srv import ParamSet
+from mavros_msgs.srv import CommandHome
 
 
 ################################################################################
@@ -52,6 +57,7 @@ class EPFlags(Enum):
 ##  __heightSub - ground distanceS topic subscruber
 ##  __localCtrlPub - local position target topic publisher
 ##  __armingClient - service client to arm quadrotor
+##  __setParamClient - service client to set autopilot parameters
 ##  __setModeClient - service client to set control mode
 ##
 ##
@@ -59,6 +65,7 @@ class EPFlags(Enum):
 ##  __onStateChanged - state topic callback function
 ##  __onPoseChanged - pose topic callback function
 ##  __onHeightChanged - ground distance topic callback function
+##  SetParam - sets autopilot parameter by ID
 ##  SetMode - sets quadrotor control mode
 ##  SetIsArmed - arms/disarms quadrotor
 ##  SetPos - sets quadrotor target position
@@ -87,6 +94,7 @@ class CMovementController:
         self.__heightSub = rospy.Subscriber("mavros/px4flow/ground_distance", Range, self.__onHeightChanged)
         self.__localCtrlPub = rospy.Publisher("mavros/setpoint_raw/local", PositionTarget, queue_size = 10)
         self.__armingClient = rospy.ServiceProxy("mavros/cmd/arming", CommandBool)
+        self.__setParamClient = rospy.ServiceProxy("mavros/param/set", ParamSet)
         self.__setModeClient = rospy.ServiceProxy("mavros/set_mode", SetMode)
 
     ## State topic callback function
@@ -109,6 +117,16 @@ class CMovementController:
     ## Ground distance topic callback function
     def __onHeightChanged(self, heightInfo):
         self.height = heightInfo.range
+
+    ## Set autopilot parameter by ID
+    def SetParam(self, id, valInt, valFloat):
+        try:
+            val = ParamValue()
+            val.integer = valInt
+            val.real = valFloat
+            self.__setParamClient(param_id = id, value = val)
+        except rospy.ServiceException as e:
+            rospy.logerr("CMovementController: SetParam error: %s", e.message)
 
     ## Set quadrotor control mode
     def SetMode(self, mode):

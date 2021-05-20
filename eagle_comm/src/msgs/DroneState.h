@@ -7,7 +7,6 @@ struct SDroneState
 	enum ESystemState : uint8_t
 	{
 		ST_DISCONNECTED = 0,
-		ST_SETUP_MODE,
 		ST_IDLE,
 		ST_TAKEOFF,
 		ST_WORKING,

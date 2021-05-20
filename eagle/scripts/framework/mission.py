@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 
 from eagle_comm.msg import GsCmdMission
@@ -19,7 +21,7 @@ class CMission:
         self.__path = []
         self.__curIdx = 0
 
-        self.__targetHeight = 0.0
+        self.targetHeight = 0.0
         self.__tolerance = 0.0
 
         self.__missionSub = rospy.Subscriber("eagle_comm/in/cmd_mission", GsCmdMission, self.__onMissionChanged)
@@ -29,7 +31,7 @@ class CMission:
     def IsValid(self):
         hashValid = self.hash != 0xFFFFFFFF
         pathValid = len(self.__path) >= 2
-        heightValid = self.__targetHeight >= 1.5
+        heightValid = self.targetHeight >= 1.5
         toleranceValid = self.__tolerance > 0.0
         
         if(not hashValid):
@@ -39,7 +41,7 @@ class CMission:
             rospy.logwarn("CMission::IsValid: invalid path ('%s')", str(self.__path))
         
         if(not heightValid):
-            rospy.logwarn("CMission::IsValid: invalid target height (%f)", self.__targetHeight)
+            rospy.logwarn("CMission::IsValid: invalid target height (%f)", self.targetHeight)
         
         if(not toleranceValid):
             rospy.logwarn("CMission::IsValid: invalid tolerance (%f)", self.__tolerance)
@@ -48,6 +50,8 @@ class CMission:
     
     def Reset(self):
         rospy.loginfo("CMission: reset to start")
+        # Set current position as the return point
+        self.__path[-1] = [self.__gps.lat, self.__gps.lon]
         self.__curIdx = 0
 
     def Update(self):
@@ -70,7 +74,7 @@ class CMission:
         dy = 1000.0*(lat2-lat1)*40000/360
 
         targetPosDelta = Vec3(dx, dy, 0.0)
-        self.__movCtrl.SetPos(targetPosDelta.x + self.__movCtrl.pos.x, targetPosDelta.y + self.__movCtrl.pos.y, self.__targetHeight)
+        self.__movCtrl.SetPos(targetPosDelta.x + self.__movCtrl.pos.x, targetPosDelta.y + self.__movCtrl.pos.y, self.targetHeight)
 
         targetYaw = np.arctan2(targetPosDelta.y, targetPosDelta.x)
         self.__movCtrl.SetYaw(targetYaw)
@@ -82,7 +86,7 @@ class CMission:
         tol = np.degrees(self.__tolerance / (abs(np.cos(np.radians(trgPos[0]))) * 6371032.0))
         
         if(latError <= tol and lonError <= tol):
-            rospy.loginfo("CMission::Update: passed waypoint #%d of #%d", self.__curIdx, len(self.__path) - 1)
+            rospy.loginfo("CMission::Update: passed waypoint #%d of #%d", self.__curIdx + 1, len(self.__path))
             self.__curIdx += 1
 
         return False
@@ -95,11 +99,13 @@ class CMission:
             self.__path = []
             for ptGeo in mission.path:
                 self.__path.append([ptGeo.x, ptGeo.y])
+            self.__path.append([self.__gps.lat, self.__gps.lon])
             rospy.loginfo("CMission: mission updated (hash = %#08x)", self.hash)
 
     def __onHeightChanged(self, height):
-        self.__targetHeight = height.value
-        rospy.loginfo("CMission: target height updated (%f)", self.__targetHeight)
+        self.targetHeight = height.value
+        self.__movCtrl.SetParam("MIS_TAKEOFF_ALT", 0, self.targetHeight)
+        rospy.loginfo("CMission: target height updated (%f)", self.targetHeight)
 
     def __onToleranceChanged(self, tolerance):
         self.__tolerance = tolerance.value

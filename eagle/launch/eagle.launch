@@ -1,6 +1,6 @@
 <launch>
     <node pkg="eagle_comm" type="comm" name="eagle_comm" output="screen">
-        <param name="port" type="int" value="54000"/>
+        <param name="port" type="int" value="54001"/>
         <param name="max_data_len" type="int" value="16384"/>
     </node>
     <node pkg="eagle" type="main.py" name="eagle_movement_system" output="screen"/>

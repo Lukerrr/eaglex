@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 ################################################################################
 ## Contains config variables for the solution.
 ##
@@ -12,12 +14,6 @@
 class CSolutionConfig():
     def __init__(self):
         self.deltaSeconds       = 0.02
-
-        self.tkoffVelocity      = 0.5
-        self.tkoffHeight        = 2.0
-
-        self.landVelocity       = 0.5
-        self.landHeight         = 0.12
 
 ## Global variable to refer to
 g_config = CSolutionConfig()

@@ -19,6 +19,8 @@ class CSystem:
         self.__systemState = ESystemState.DISCONNECTED
         self.__lastState = ESystemState.IDLE
         self.__rate = rospy.Rate(1.0 / g_config.deltaSeconds)
+        self.__takeoffPos = None
+        self.__landingPos = None
         self.__gps = CGpsSystem()
         self.__movCtrl = CMovementController(self.__gps)
         self.__mission = CMission(self.__movCtrl, self.__gps)
@@ -27,6 +29,12 @@ class CSystem:
         self.__disarmSub = rospy.Subscriber("eagle_comm/in/cmd_disarm", GsCmdSimple, self.__onCmdDisarm)
         self.__armSub = rospy.Subscriber("eagle_comm/in/cmd_start", GsCmdSimple, self.__onCmdStart)
         self.__disarmSub = rospy.Subscriber("eagle_comm/in/cmd_stop", GsCmdSimple, self.__onCmdStop)
+        self.__stateModes = \
+        {\
+            ESystemState.TAKEOFF: "OFFBOARD",\
+            ESystemState.WORKING: "OFFBOARD",\
+            ESystemState.LANDING: "OFFBOARD"\
+        }
 
     def Run(self):
         rospy.loginfo("CSystem: waiting for a timer...")
@@ -51,31 +59,28 @@ class CSystem:
 
             self.__mission.isLocked = self.__systemState.value > ESystemState.IDLE.value
 
+            # Check is connected
             if(self.__systemState != ESystemState.DISCONNECTED):
                 if(self.__movCtrl.simState.connected == False):
                     rospy.logwarn("CSystem: disconnected from FMU!")
+                    self.__lastState = self.__systemState
+                    if(self.__lastState != ESystemState.IDLE):
+                        rospy.loginfo("CSystem: reserved state '%s'", self.__lastState.name)
                     self.__setState(ESystemState.DISCONNECTED)
-                elif(not self.__isOffboard()):
-                    if(self.__systemState != ESystemState.SETUP_MODE):
-                        rospy.logwarn("CSystem: OFFBOARD was disabled, resetting...")
-                        self.__lastState = self.__systemState
-                        self.__setState(ESystemState.SETUP_MODE)
+
+            # Check is flight mode valid
+            requiredMode = self.__stateModes.get(self.__systemState)
+            curMode = self.__movCtrl.simState.mode
+            if(requiredMode != None and curMode != requiredMode):
+                self.__movCtrl.SetMode(requiredMode)
 
             if(dt > 0.0):
                 # State DISCONNECTED
                 if(self.__systemState == ESystemState.DISCONNECTED):
                     if(self.__movCtrl.simState.connected == True):
-                        if(not self.__isOffboard()):
-                            self.__setState(ESystemState.SETUP_MODE)
-                        else:
-                            self.__setState(self.__lastState)
-
-                # State SETUP_MODE
-                elif(self.__systemState == ESystemState.SETUP_MODE):
-                    if(not self.__isOffboard()):
-                        self.__movCtrl.SetMode("OFFBOARD")
-                    else:
-                        self.__setState(ESystemState.IDLE)
+                        self.__setState(self.__lastState)
+                        if(self.__systemState != ESystemState.IDLE):
+                            rospy.loginfo("CSystem: restored state '%s'", self.__systemState.name)
 
                 # State IDLE
                 elif(self.__systemState == ESystemState.IDLE):
@@ -83,11 +88,14 @@ class CSystem:
 
                 # State TAKEOFF
                 elif(self.__systemState == ESystemState.TAKEOFF):
-                    self.__movCtrl.SetVel(0, 0, g_config.tkoffVelocity)
-                    if(self.__movCtrl.height >= g_config.tkoffHeight):
-                        rospy.loginfo("CSystem: takeoff was done at height %f", self.__movCtrl.height)
+                    if(self.__takeoffPos == None):
+                        self.__takeoffPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
+                    self.__movCtrl.SetPos(self.__takeoffPos[0], self.__takeoffPos[1], self.__mission.targetHeight)
+                    if(self.__movCtrl.pos.z >= self.__mission.targetHeight * 0.8):
+                        rospy.loginfo("CSystem: takeoff was done at height %f", self.__movCtrl.pos.z)
                         self.__setState(ESystemState.WORKING)
                         self.__mission.Reset()
+                        self.__takeoffPos = None
 
                 # State WORKING
                 elif(self.__systemState == ESystemState.WORKING):
@@ -97,11 +105,14 @@ class CSystem:
 
                 # State LANDING
                 elif(self.__systemState == ESystemState.LANDING):
-                    self.__movCtrl.SetVel(0, 0, -g_config.landVelocity)
-                    if(self.__movCtrl.height <= g_config.landVelocity):
+                    if(self.__landingPos == None):
+                        self.__landingPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
+                    self.__movCtrl.SetPos(self.__landingPos[0], self.__landingPos[1], 0.0)
+                    if(self.__movCtrl.pos.z <= 0.15):
                         rospy.loginfo("CSystem: landing was done! Disarming...")
                         self.__movCtrl.SetIsArmed(False)
                         self.__setState(ESystemState.IDLE)
+                        self.__landingPos = None
             else:
                 rospy.logwarn("CSystem: delta time was invalid (%f) at %f sec.", dt, curTime)
 
@@ -112,10 +123,6 @@ class CSystem:
 
     def Exit(self):
         self.__movCtrl.SetMode("AUTO.LAND")
-        rospy.sleep(1)
-
-    def __isOffboard(self):
-        return self.__movCtrl.simState.mode == "OFFBOARD"
 
     def __setState(self, st):
         if(self.__systemState != st):

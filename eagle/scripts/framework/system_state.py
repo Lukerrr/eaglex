@@ -4,10 +4,9 @@ from enum import Enum
 
 class ESystemState(Enum):
     DISCONNECTED = 0
-    SETUP_MODE = 1
-    IDLE = 2
+    IDLE = 1
     
     # Working states
-    TAKEOFF = 3
-    WORKING = 4
-    LANDING = 5
+    TAKEOFF = 2
+    WORKING = 3
+    LANDING = 4

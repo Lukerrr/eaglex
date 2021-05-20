@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 
 ## Returns False if node is shutting down
