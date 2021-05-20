@@ -39,9 +39,9 @@ void CCommunicator::Update()
 
             if (dataLen == 0)
             {
-                // Client disconnected
-                ROS_INFO_NAMED(LOG_NAME, "Ground station %d disconnected", m_clSock);
+                ROS_INFO_NAMED(LOG_NAME, "Communicator: Ground station %d disconnected", m_clSock);
 
+                // Client disconnected
                 close(m_clSock);
                 m_clSock = -1;
             }
@@ -51,6 +51,8 @@ void CCommunicator::Update()
                 ECmdType cmdType = *(ECmdType *)data;
                 void *cmdData = dataLen > 1 ? data + sizeof(ECmdType) : NULL;
                 m_cmdHandler.Invoke(cmdType, cmdData);
+
+                ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", cmdType);
             }
 
             delete[] data;
@@ -69,7 +71,7 @@ void CCommunicator::Update()
         if (m_clSock != -1)
         {
             fcntl(m_clSock, F_SETFL, fcntl(m_clSock, F_GETFL, 0) | O_NONBLOCK);
-            ROS_INFO_NAMED(LOG_NAME, "Connected to a ground station '%s:%d' (%d)",
+            ROS_INFO_NAMED(LOG_NAME, "Communicator: Connected to a ground station '%s:%d' (%d)",
                            inet_ntoa(clAddr.sin_addr), clAddr.sin_port, m_clSock);
         }
     }
@@ -84,7 +86,7 @@ void CCommunicator::SendInternal(char* pData, int len)
     
     if (send(m_clSock, pData, len, 0) == -1)
     {
-        ROS_ERROR_NAMED(LOG_NAME, "Cannot send a state (%s). Closing connection...", strerror(errno));
+        ROS_ERROR_NAMED(LOG_NAME, "Communicator: Cannot send a state (%s). Closing connection...", strerror(errno));
         Invalidate();
     }
 }
@@ -96,7 +98,7 @@ bool CCommunicator::Initialize()
     m_svSock = socket(AF_INET, SOCK_STREAM, 0);
     if (m_svSock == -1)
     {
-        ROS_ERROR_NAMED(LOG_NAME, "%s: Socket error: %s", __func__, strerror(errno));
+        ROS_ERROR_NAMED(LOG_NAME, "Communicator:%s: Socket error: %s", __func__, strerror(errno));
         return false;
     }
 
@@ -108,17 +110,17 @@ bool CCommunicator::Initialize()
     svSocketInfo.sin_addr.s_addr = INADDR_ANY;
     if (bind(m_svSock, (sockaddr *)&svSocketInfo, sizeof(svSocketInfo)) == -1)
     {
-        ROS_ERROR_NAMED(LOG_NAME, "%s: Bind error: %s", __func__, strerror(errno));
+        ROS_ERROR_NAMED(LOG_NAME, "Communicator:%s: Bind error: %s", __func__, strerror(errno));
         return false;
     }
 
     if (listen(m_svSock, CONN_MAX_CLIENTS) == -1)
     {
-        ROS_ERROR_NAMED(LOG_NAME, "%s: Listen error: %s", __func__, strerror(errno));
+        ROS_ERROR_NAMED(LOG_NAME, "Communicator:%s: Listen error: %s", __func__, strerror(errno));
         return false;
     }
 
-    ROS_INFO_NAMED(LOG_NAME, "Communicator has been intialized! Socket = %d", m_svSock);
+    ROS_INFO_NAMED(LOG_NAME, "Communicator: successfully intialized! Socket = %d", m_svSock);
 
     m_bIsValid = true;
 
@@ -127,7 +129,7 @@ bool CCommunicator::Initialize()
 
 void CCommunicator::Invalidate()
 {
-    ROS_INFO_NAMED(LOG_NAME, "Invalidating communicator...");
+    ROS_INFO_NAMED(LOG_NAME, "Communicator: invalidating...");
 
     if (m_svSock != -1)
     {

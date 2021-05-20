@@ -7,6 +7,7 @@ from framework.config import g_config
 from framework.gps import CGpsSystem
 from framework.mission import CMission
 from framework.mov_ctrl import CMovementController
+from framework.point_cloud import CPointCloud
 from framework.drone_listener import CDroneListener
 from framework.system_state import ESystemState
 
@@ -23,12 +24,14 @@ class CSystem:
         self.__landingPos = None
         self.__gps = CGpsSystem()
         self.__movCtrl = CMovementController(self.__gps)
+        self.__pointCloud = CPointCloud(self.__movCtrl)
         self.__mission = CMission(self.__movCtrl, self.__gps)
         self.__droneLst = CDroneListener(self.__movCtrl, self.__gps, self.__mission)
         self.__armSub = rospy.Subscriber("eagle_comm/in/cmd_arm", GsCmdSimple, self.__onCmdArm)
         self.__disarmSub = rospy.Subscriber("eagle_comm/in/cmd_disarm", GsCmdSimple, self.__onCmdDisarm)
         self.__armSub = rospy.Subscriber("eagle_comm/in/cmd_start", GsCmdSimple, self.__onCmdStart)
         self.__disarmSub = rospy.Subscriber("eagle_comm/in/cmd_stop", GsCmdSimple, self.__onCmdStop)
+        self.__getCloudSub = rospy.Subscriber("eagle_comm/in/cmd_get_cloud", GsCmdSimple, self.__onCmdGetCloud)
         self.__stateModes = \
         {\
             ESystemState.TAKEOFF: "OFFBOARD",\
@@ -117,7 +120,7 @@ class CSystem:
                 rospy.logwarn("CSystem: delta time was invalid (%f) at %f sec.", dt, curTime)
 
             self.__movCtrl.DispatchPosition()
-            self.__droneLst.SendData(self.__systemState.value)
+            self.__droneLst.SendData(self.__systemState.value, self.__pointCloud.GetSize())
             self.__rate.sleep()
 
 
@@ -168,3 +171,7 @@ class CSystem:
                 rospy.loginfo("CSystem: cannot stop if disarmed")
         else:
             rospy.loginfo("CSystem: invalid working state '%s'", self.__systemState.name)
+    
+    def __onCmdGetCloud(self, cmd):
+        rospy.loginfo("CSystem: command 'GET_CLOUD' received")
+        self.__pointCloud.PublishCloud()

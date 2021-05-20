@@ -16,7 +16,7 @@ class CDroneListener:
         self.__chargeSub = rospy.Subscriber("mavros/battery", BatteryState, self.__onBatteryStateChanged)
         self.__droneStatePub = rospy.Publisher("eagle_comm/out/drone_state", DroneState, queue_size = 1)
     
-    def SendData(self, systemState):
+    def SendData(self, systemState, cloudSize):
         state = DroneState()
         state.lat = self.__gps.lat
         state.lon = self.__gps.lon
@@ -31,7 +31,7 @@ class CDroneListener:
         state.missionHash = self.__mission.hash
         state.charge = self.__batCharge
         state.systemState = systemState
-        state.cloudSize = 322
+        state.cloudSize = cloudSize
         state.armed = self.__movCtrl.simState.armed
         state.offboard = (self.__movCtrl.simState.mode == "OFFBOARD")
         self.__droneStatePub.publish(state)

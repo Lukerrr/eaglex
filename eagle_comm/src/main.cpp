@@ -43,21 +43,42 @@ void OnDroneStateUpdated(const eagle_comm::DroneState& msg)
 
 void OnPointCloudReceived(const eagle_comm::PointCloud& msg)
 {
-    SPointCloud cloud;
-    cloud.cloudSize = msg.cloud.size();
-    if(cloud.cloudSize > cloud.cloudMaxSize)
+    int pointsNum = msg.cloud.size();
+
+    if(pointsNum == 0)
     {
-        cloud.cloudSize = cloud.cloudMaxSize;
+        ROS_INFO_NAMED(LOG_NAME, "Communicator: received an empty point cloud. Ignoring...");
+        return;
     }
 
-    for(int i = 0; i < cloud.cloudSize; ++i)
-    {
-        cloud.cloud[i].x = msg.cloud[i].x;
-        cloud.cloud[i].y = msg.cloud[i].y;
-        cloud.cloud[i].z = msg.cloud[i].y;
-    }
+    ROS_INFO_NAMED(LOG_NAME, "Communicator: received a cloud of %d points. Dispatching...", pointsNum);
 
-    s_pComm->Send(cloud);
+    int chunksNum = 0;
+    while(pointsNum > 0)
+    {
+        SPointCloud cloud;
+        cloud.cloudSize = pointsNum;
+        if(cloud.cloudSize > cloud.cloudMaxSize)
+        {
+            cloud.cloudSize = cloud.cloudMaxSize;
+        }
+
+        for(int i = 0; i < cloud.cloudSize; ++i)
+        {
+            geometry_msgs::Vector3 cloudPt = msg.cloud[chunksNum * cloud.cloudMaxSize + i];
+            cloud.cloud[i].x = cloudPt.x;
+            cloud.cloud[i].y = cloudPt.y;
+            cloud.cloud[i].z = cloudPt.z;
+        }
+
+        s_pComm->Send(cloud);
+
+        ROS_INFO_NAMED(LOG_NAME, "Communicator: sent cloud chunk (%d points)", cloud.cloudSize);
+        pointsNum -= cloud.cloudSize;
+        ++chunksNum;
+    }
+    
+    ROS_INFO_NAMED(LOG_NAME, "Communicator: point cloud was sent in %d chunks", chunksNum);
 }
 
 int main(int argc, char **argv)
@@ -72,7 +93,7 @@ int main(int argc, char **argv)
     if(s_pComm != NULL)
     {
         ros::Subscriber droneStateSub = nh.subscribe("out/drone_state", 1, OnDroneStateUpdated);
-        ros::Subscriber pointCloudSub = nh.subscribe("out/point_cloud", 25, OnPointCloudReceived);
+        ros::Subscriber pointCloudSub = nh.subscribe("out/point_cloud", 1, OnPointCloudReceived);
 
         ros::Rate loopRate(10);
 
