@@ -3,7 +3,6 @@
 import rospy
 
 from helpers.ros_globals import *
-from framework.config import g_config
 from framework.gps import CGpsSystem
 from framework.mission import CMission
 from framework.mov_ctrl import CMovementController
@@ -19,7 +18,7 @@ class CSystem:
         rospy.init_node("eagle_movement_system", anonymous = True)
         self.__systemState = ESystemState.DISCONNECTED
         self.__lastState = ESystemState.IDLE
-        self.__rate = rospy.Rate(1.0 / g_config.deltaSeconds)
+        self.__rate = rospy.Rate(rospy.get_param("rate", default=20))
         self.__takeoffPos = None
         self.__landingPos = None
         self.__gps = CGpsSystem()
@@ -56,11 +55,20 @@ class CSystem:
             dt = curTime - self.__time
             self.__time = curTime
 
+            # Detect auto-disarm
             if(not self.__movCtrl.simState.armed and self.__systemState.value > ESystemState.IDLE.value):
                 rospy.logwarn("CSystem: disarmed by autopilot!")
                 self.__setState(ESystemState.IDLE)
 
-            self.__mission.isLocked = self.__systemState.value > ESystemState.IDLE.value
+            isWorking = self.__systemState.value > ESystemState.IDLE.value
+                
+            # Prevent mission changes if working
+            self.__mission.isLocked = isWorking
+
+            # Validate mission if working
+            if(isWorking and not self.__mission.IsValid()):
+                rospy.logwarn("CSystem: mission is invalid, landing...")
+                self.__setState(ESystemState.LANDING)
 
             # Check is connected
             if(self.__systemState != ESystemState.DISCONNECTED):

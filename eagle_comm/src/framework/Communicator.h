@@ -1,15 +1,20 @@
 #pragma once
 
+#include "Singleton.h"
 #include "CommandHandler.h"
+#include "UploadManager.h"
 #include "RspMsgs.h"
 
-class CCommunicator
+#define g_pComm ((&CCommunicator::Instance()))
+
+class CCommunicator : public TSingleton<CCommunicator>
 {
 public:
-	CCommunicator(uint16_t port, uint32_t maxDataLen);
+	CCommunicator();
 	~CCommunicator();
 
 	void Update();
+	CUploadManager& GetUploadManager();
 
     template<typename T>
     void Send(T msg);
@@ -21,9 +26,9 @@ private:
     void SendInternal(char* pData, int len);
 
 	uint16_t m_port;
-	uint32_t m_maxDataLen;
 
 	CCommandHandler m_cmdHandler;
+	CUploadManager m_uploadManager;
 
 	int m_svSock = -1;
 	int m_clSock = -1;

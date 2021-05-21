@@ -1,15 +1,39 @@
 #include "Communicator.h"
+#include "CmdMsgs.h"
 #include "Log.h"
+
+#include "ros/ros.h"
 
 #include <sys/fcntl.h>
 #include <arpa/inet.h>
 
+#define CONN_PORT_DEF 54000
 #define CONN_MAX_CLIENTS 1
 
-CCommunicator::CCommunicator(uint16_t port, uint32_t maxDataLen)
+size_t GetCmdDataSize(ECmdType type)
 {
+    size_t size = 0;
+    switch(type)
+    {
+	case CMD_ARM:       size = sizeof(SCmdArm);         break;
+	case CMD_DISARM:    size = sizeof(SCmdDisarm);      break;
+	case CMD_START:     size = sizeof(SCmdStart);       break;
+	case CMD_STOP:      size = sizeof(SCmdStop);        break;
+	case CMD_HEIGHT:    size = sizeof(SCmdHeight);      break;
+	case CMD_TOLERANCE: size = sizeof(SCmdTolerance);   break;
+	case CMD_GET_CLOUD: size = sizeof(SCmdGetCloud);    break;
+	case CMD_MISSION:   size = sizeof(SCmdMission);     break;
+    default:
+        break;
+    }
+    return size;
+}
+
+CCommunicator::CCommunicator()
+{
+    ros::NodeHandle nh("~");
+    int port = nh.param("port", CONN_PORT_DEF);
     m_port = port;
-    m_maxDataLen = maxDataLen;
 }
 
 CCommunicator::~CCommunicator()
@@ -33,9 +57,8 @@ void CCommunicator::Update()
         int dataLen = 0;
         do
         {
-            char *data = new char[m_maxDataLen];
-            memset(data, 0, m_maxDataLen);
-            dataLen = recv(m_clSock, data, m_maxDataLen, 0);
+            ECmdType cmdType;
+            dataLen = recv(m_clSock, &cmdType, sizeof(cmdType), 0);
 
             if (dataLen == 0)
             {
@@ -45,19 +68,30 @@ void CCommunicator::Update()
                 close(m_clSock);
                 m_clSock = -1;
             }
-            else if (dataLen > 0)
+            else if (dataLen > 0 && cmdType < CMD_MAX)
             {
                 // Call command handler
-                ECmdType cmdType = *(ECmdType *)data;
-                void *cmdData = dataLen > 1 ? data + sizeof(ECmdType) : NULL;
+                uint8_t *cmdData = NULL;
+                size_t dataSize = GetCmdDataSize(cmdType);
+                if(dataSize > 0)
+                {
+                    cmdData = new uint8_t[dataSize];
+                    recv(m_clSock, cmdData, dataSize, 0);
+                }
                 m_cmdHandler.Invoke(cmdType, cmdData);
+
+                if(cmdData != NULL)
+                {
+                    delete[] cmdData;
+                }
 
                 ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", cmdType);
             }
 
-            delete[] data;
-
         } while (dataLen > 0);
+
+        // Update cloud uploader
+        m_uploadManager.Update();
     }
     else
     {
@@ -75,6 +109,11 @@ void CCommunicator::Update()
                            inet_ntoa(clAddr.sin_addr), clAddr.sin_port, m_clSock);
         }
     }
+}
+
+CUploadManager& CCommunicator::GetUploadManager()
+{
+    return m_uploadManager;
 }
 
 void CCommunicator::SendInternal(char* pData, int len)

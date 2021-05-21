@@ -11,12 +11,13 @@ class CPointCloud:
     def __init__(self, movCtrl):
         self.__movCtrl = movCtrl
         #self.__cloud = []
-        self.__cloud = [\
-            Vector3(0, 0, 0),\
-            Vector3(1, 1, 1),\
-            Vector3(2, 2, 2),\
-            Vector3(3, 3, 3)
-        ]
+        self.__cloud = []
+
+        delta = Vector3(0.5, 0.25, -0.1)
+        i = 0
+        while i < 10000:
+            self.__cloud.append(Vector3(i,-i,i))
+            i += 1
 
         self.__cloudPub = rospy.Publisher("eagle_comm/out/point_cloud", PointCloud, queue_size = 1)
     
