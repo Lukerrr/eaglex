@@ -2,12 +2,10 @@
 
 import rospy
 
-import copy
 from enum import Enum
 
 from helpers.math_utils import *
 from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import Range
 from mavros_msgs.msg import PositionTarget
 from mavros_msgs.msg import State
@@ -15,7 +13,7 @@ from mavros_msgs.msg import ParamValue
 from mavros_msgs.srv import CommandBool
 from mavros_msgs.srv import SetMode
 from mavros_msgs.srv import ParamSet
-from mavros_msgs.srv import CommandHome
+from mavros_msgs.srv import CommandLong
 
 
 ################################################################################
@@ -96,6 +94,7 @@ class CMovementController:
         self.__armingClient = rospy.ServiceProxy("mavros/cmd/arming", CommandBool)
         self.__setParamClient = rospy.ServiceProxy("mavros/param/set", ParamSet)
         self.__setModeClient = rospy.ServiceProxy("mavros/set_mode", SetMode)
+        self.__cmdClient = rospy.ServiceProxy("mavros/cmd/command", CommandLong)
 
     ## State topic callback function
     def __onStateChanged(self, newState):
@@ -130,6 +129,7 @@ class CMovementController:
 
     ## Set quadrotor control mode
     def SetMode(self, mode):
+        rospy.loginfo("CMovementController: SetMode '%s'", mode)
         try:
             self.__setModeClient(custom_mode = mode)
         except rospy.ServiceException as e:
@@ -138,7 +138,12 @@ class CMovementController:
     ## Arm/disarm quadrotor
     def SetIsArmed(self, isArmed):
         try:
-            self.__armingClient(isArmed)
+            if(isArmed):
+                paramIsArmed = 1.0
+            else:
+                paramIsArmed = 0.0
+            self.__cmdClient(broadcast=False, command=400, confirmation=0, param1=paramIsArmed, param2=21196.0, param3=0.0, param4=0.0, param5=0.0, param6=0.0, param7=0.0)
+            #self.__armingClient(isArmed)
         except rospy.ServiceException as e:
             rospy.logerr("CMovementController: SetIsArmed error: %s", e.message)
 

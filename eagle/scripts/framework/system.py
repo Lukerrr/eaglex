@@ -18,7 +18,7 @@ class CSystem:
         rospy.init_node("eagle_movement_system", anonymous = True)
         self.__systemState = ESystemState.DISCONNECTED
         self.__lastState = ESystemState.IDLE
-        self.__rate = rospy.Rate(rospy.get_param("rate", default=20))
+        self.__rate = rospy.Rate(rospy.get_param("rate", default=50))
         self.__takeoffPos = None
         self.__landingPos = None
         self.__gps = CGpsSystem()
@@ -66,9 +66,9 @@ class CSystem:
             self.__mission.isLocked = isWorking
 
             # Validate mission if working
-            if(isWorking and not self.__mission.IsValid()):
-                rospy.logwarn("CSystem: mission is invalid, landing...")
-                self.__setState(ESystemState.LANDING)
+            #if(isWorking and not self.__mission.IsValid()):
+                #rospy.logwarn("CSystem: mission is invalid, landing...")
+                #self.__setState(ESystemState.LANDING)
 
             # Check is connected
             if(self.__systemState != ESystemState.DISCONNECTED):
@@ -102,28 +102,30 @@ class CSystem:
                     if(self.__takeoffPos == None):
                         self.__takeoffPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
                     self.__movCtrl.SetPos(self.__takeoffPos[0], self.__takeoffPos[1], self.__mission.targetHeight)
-                    if(self.__movCtrl.pos.z >= self.__mission.targetHeight * 0.8):
+                    if(self.__movCtrl.pos.z >= self.__mission.targetHeight * 0.9):
                         rospy.loginfo("CSystem: takeoff was done at height %f", self.__movCtrl.pos.z)
                         self.__setState(ESystemState.WORKING)
-                        self.__mission.Reset()
-                        self.__takeoffPos = None
+                        #self.__mission.Reset()
 
                 # State WORKING
                 elif(self.__systemState == ESystemState.WORKING):
-                    if(self.__mission.Update()):
-                        rospy.loginfo("CSystem: mission is done, landing...")
-                        self.__setState(ESystemState.LANDING)
+                    self.__movCtrl.SetPos(self.__takeoffPos[0], self.__takeoffPos[1], self.__mission.targetHeight)
+                    #pass
+                    #if(self.__mission.Update()):
+                        #rospy.loginfo("CSystem: mission is done, landing...")
+                        #self.__setState(ESystemState.LANDING)
 
                 # State LANDING
                 elif(self.__systemState == ESystemState.LANDING):
                     if(self.__landingPos == None):
                         self.__landingPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
                     self.__movCtrl.SetPos(self.__landingPos[0], self.__landingPos[1], 0.0)
-                    if(self.__movCtrl.pos.z <= 0.15):
+                    if(self.__movCtrl.pos.z <= 0.2):
                         rospy.loginfo("CSystem: landing was done! Disarming...")
                         self.__movCtrl.SetIsArmed(False)
                         self.__setState(ESystemState.IDLE)
                         self.__landingPos = None
+                        self.__takeoffPos = None
             else:
                 rospy.logwarn("CSystem: delta time was invalid (%f) at %f sec.", dt, curTime)
 
