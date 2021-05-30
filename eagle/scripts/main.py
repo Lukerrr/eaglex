@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+## For python3 - fix paths
+import sys
+sys.path.append('/home/odroid/Workspace/eaglex/src/eagle/scripts')
 
 import rospy
 
@@ -9,5 +11,5 @@ if __name__ == "__main__":
     try:
         system.Run()
     except rospy.ROSInterruptException as e:
-        rospy.logerr("ROSInterruptException: %s", e.message)
+        rospy.logerr("ROSInterruptException: %s", str(e))
     system.Exit()

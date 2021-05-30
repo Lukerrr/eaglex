@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import rospy
 
@@ -15,7 +15,7 @@ from eagle_comm.msg import GsCmdSimple
 
 class CSystem:
     def __init__(self):
-        rospy.init_node("eagle_movement_system", anonymous = True)
+        rospy.init_node("eagle", anonymous = True)
         self.__systemState = ESystemState.DISCONNECTED
         self.__lastState = ESystemState.IDLE
         self.__rate = rospy.Rate(rospy.get_param("rate", default=50))

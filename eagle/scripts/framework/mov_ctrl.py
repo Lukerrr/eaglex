@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import rospy
 
@@ -125,7 +125,7 @@ class CMovementController:
             val.real = valFloat
             self.__setParamClient(param_id = id, value = val)
         except rospy.ServiceException as e:
-            rospy.logerr("CMovementController: SetParam error: %s", e.message)
+            rospy.logerr("CMovementController: SetParam error: %s", str(e))
 
     ## Set quadrotor control mode
     def SetMode(self, mode):
@@ -133,7 +133,7 @@ class CMovementController:
         try:
             self.__setModeClient(custom_mode = mode)
         except rospy.ServiceException as e:
-            rospy.logerr("CMovementController: SetMode error: %s", e.message)
+            rospy.logerr("CMovementController: SetMode error: %s", str(e))
 
     ## Arm/disarm quadrotor
     def SetIsArmed(self, isArmed):
@@ -145,7 +145,7 @@ class CMovementController:
             self.__cmdClient(broadcast=False, command=400, confirmation=0, param1=paramIsArmed, param2=21196.0, param3=0.0, param4=0.0, param5=0.0, param6=0.0, param7=0.0)
             #self.__armingClient(isArmed)
         except rospy.ServiceException as e:
-            rospy.logerr("CMovementController: SetIsArmed error: %s", e.message)
+            rospy.logerr("CMovementController: SetIsArmed error: %s", str(e))
 
     ## Set quadrotor target position
     def SetPos(self, x, y, z):

@@ -1,13 +1,13 @@
 <launch>
     <include file="$(find mavros)/launch/px4.launch">
         <arg name="fcu_url" value="/dev/ttyUSB0:921600"/>
-        <arg name="gcs_url" value="udp://@192.168.43.255"/>
+        <arg name="gcs_url" value="udp://@192.168.43.250"/>
     </include>
     <node pkg="eagle_comm" type="comm" name="eagle_comm" output="screen">
         <param name="port" type="int" value="54001"/>
         <param name="rate" type="int" value="20"/>
     </node>
-    <node pkg="eagle" type="main.py" name="eagle_movement_system" output="screen">
+    <node pkg="eagle" type="main.py" name="eagle" output="screen">
         <param name="rate" type="int" value="50"/>
     </node>
 </launch>
