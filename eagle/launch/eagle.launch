@@ -1,9 +1,0 @@
-<launch>
-    <node pkg="eagle_comm" type="comm" name="eagle_comm" output="screen">
-        <param name="port" type="int" value="54000"/>
-        <param name="rate" type="int" value="20"/>
-    </node>
-    <node pkg="eagle" type="main.py" name="eagle_movement_system" output="screen">
-        <param name="rate" type="int" value="50"/>
-    </node>
-</launch>

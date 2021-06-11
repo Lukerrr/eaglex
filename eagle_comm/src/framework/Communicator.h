@@ -10,30 +10,30 @@
 class CCommunicator : public TSingleton<CCommunicator>
 {
 public:
-	CCommunicator();
-	~CCommunicator();
+    CCommunicator();
+    ~CCommunicator();
 
-	void Update();
-	CUploadManager& GetUploadManager();
+    void Update();
+    CUploadManager& GetUploadManager();
 
     template<typename T>
     void Send(T msg);
 
 private:
-	bool Initialize();
-	void Invalidate();
+    bool Initialize();
+    void Invalidate();
 
     void SendInternal(char* pData, int len);
 
-	uint16_t m_port;
+    uint16_t m_port;
 
-	CCommandHandler m_cmdHandler;
-	CUploadManager m_uploadManager;
+    CCommandHandler m_cmdHandler;
+    CUploadManager m_uploadManager;
 
-	int m_svSock = -1;
-	int m_clSock = -1;
+    int m_svSock = -1;
+    int m_clSock = -1;
 
-	bool m_bIsValid = false;
+    bool m_bIsValid = false;
 };
 
 template<typename T>

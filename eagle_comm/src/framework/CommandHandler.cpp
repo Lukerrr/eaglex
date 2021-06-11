@@ -15,7 +15,9 @@ static ros::Publisher s_startPub;
 static ros::Publisher s_stopPub;
 static ros::Publisher s_heightPub;
 static ros::Publisher s_tolerancePub;
-static ros::Publisher s_getCloudPub;
+static ros::Publisher s_getCloudBeginPub;
+static ros::Publisher s_getCloudNextPub;
+static ros::Publisher s_getCloudEndPub;
 static ros::Publisher s_missionPub;
 
 void SendSimpleCmd(ros::Publisher& pub)
@@ -57,9 +59,19 @@ void OnCmdStop(void* data)
     SendSimpleCmd(s_stopPub);
 }
 
-void OnCmdGetCloud(void* data)
+void OnCmdGetCloudBegin(void* data)
 {
-    SendSimpleCmd(s_getCloudPub);
+    SendSimpleCmd(s_getCloudBeginPub);
+}
+
+void OnCmdGetCloudNext(void* data)
+{
+    SendSimpleCmd(s_getCloudNextPub);
+}
+
+void OnCmdGetCloudEnd(void* data)
+{
+    SendSimpleCmd(s_getCloudEndPub);
 }
 
 void OnCmdHeight(void* data)
@@ -102,7 +114,9 @@ CCommandHandler::CCommandHandler()
     m_handlers[CMD_STOP] = OnCmdStop;
     m_handlers[CMD_HEIGHT] = OnCmdHeight;
     m_handlers[CMD_TOLERANCE] = OnCmdTolerance;
-    m_handlers[CMD_GET_CLOUD] = OnCmdGetCloud;
+    m_handlers[CMD_GET_CLOUD_BEGIN] = OnCmdGetCloudBegin;
+    m_handlers[CMD_GET_CLOUD_NEXT] = OnCmdGetCloudNext;
+    m_handlers[CMD_GET_CLOUD_END] = OnCmdGetCloudEnd;
     m_handlers[CMD_MISSION] = OnCmdMission;
     
     ros::NodeHandle nh("~");
@@ -112,7 +126,9 @@ CCommandHandler::CCommandHandler()
     s_stopPub = nh.advertise<eagle_comm::GsCmdSimple>("in/cmd_stop", 1);
     s_heightPub = nh.advertise<eagle_comm::GsCmdFloat>("in/cmd_height", 1);
     s_tolerancePub = nh.advertise<eagle_comm::GsCmdFloat>("in/cmd_tolerance", 1);
-    s_getCloudPub = nh.advertise<eagle_comm::GsCmdSimple>("in/cmd_get_cloud", 1);
+    s_getCloudBeginPub = nh.advertise<eagle_comm::GsCmdSimple>("in/cmd_get_cloud", 1);
+    s_getCloudNextPub = nh.advertise<eagle_comm::GsCmdSimple>("in/cmd_get_cloud_next", 1);
+    s_getCloudEndPub = nh.advertise<eagle_comm::GsCmdSimple>("in/cmd_get_cloud_end", 1);
     s_missionPub = nh.advertise<eagle_comm::GsCmdMission>("in/cmd_mission", 1);
 }
 

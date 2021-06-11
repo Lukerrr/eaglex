@@ -4,6 +4,7 @@
 #include "ros/ros.h"
 #include "eagle_comm/DroneState.h"
 #include "eagle_comm/PointCloud.h"
+#include "eagle_comm/GsCmdSimple.h"
 
 #include <sstream>
 
@@ -43,6 +44,16 @@ void OnPointCloudReceived(const eagle_comm::PointCloud& msg)
     g_pComm->GetUploadManager().BeginUpload(msg.cloud);
 }
 
+void OnGetCloudNextCmd(const eagle_comm::GsCmdSimple& msg)
+{
+    g_pComm->GetUploadManager().Unlock();
+}
+
+void OnGetCloudEndCmd(const eagle_comm::GsCmdSimple& msg)
+{
+    g_pComm->GetUploadManager().EndUpload();
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "eagle_comm");
@@ -52,6 +63,8 @@ int main(int argc, char **argv)
 
     ros::Subscriber droneStateSub = nh.subscribe("out/drone_state", 1, OnDroneStateUpdated);
     ros::Subscriber pointCloudSub = nh.subscribe("out/point_cloud", 1, OnPointCloudReceived);
+    ros::Subscriber getCloudNextSub = nh.subscribe("in/cmd_get_cloud_next", 1, OnGetCloudNextCmd);
+    ros::Subscriber getCloudEndSub = nh.subscribe("in/cmd_get_cloud_end", 1, OnGetCloudEndCmd);
 
     ros::Rate loopRate(rate);
 

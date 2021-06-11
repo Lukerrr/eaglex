@@ -52,7 +52,7 @@ DECLARE_MSG(RSP_POINT_CLOUD, SRspPointCloud,
 
     uint32_t cloudSize;
 
-    static const int cloudMaxSize = 64; 
+    static const int cloudMaxSize = 256; 
     CloudPt cloud[cloudMaxSize];
 )
 

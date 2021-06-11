@@ -14,5 +14,5 @@ public:
     void Invoke(ECmdType type, void* data);
 
 private:
-	TCmdHandler m_handlers[CMD_MAX];
+    TCmdHandler m_handlers[CMD_MAX];
 };

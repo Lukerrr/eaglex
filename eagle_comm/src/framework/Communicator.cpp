@@ -12,21 +12,21 @@
 
 size_t GetCmdDataSize(ECmdType type)
 {
-    size_t size = 0;
     switch(type)
     {
-	case CMD_ARM:       size = sizeof(SCmdArm);         break;
-	case CMD_DISARM:    size = sizeof(SCmdDisarm);      break;
-	case CMD_START:     size = sizeof(SCmdStart);       break;
-	case CMD_STOP:      size = sizeof(SCmdStop);        break;
-	case CMD_HEIGHT:    size = sizeof(SCmdHeight);      break;
-	case CMD_TOLERANCE: size = sizeof(SCmdTolerance);   break;
-	case CMD_GET_CLOUD: size = sizeof(SCmdGetCloud);    break;
-	case CMD_MISSION:   size = sizeof(SCmdMission);     break;
+    case CMD_ARM:               return sizeof(SCmdArm);
+    case CMD_DISARM:            return sizeof(SCmdDisarm);
+    case CMD_START:             return sizeof(SCmdStart);
+    case CMD_STOP:              return sizeof(SCmdStop);
+    case CMD_HEIGHT:            return sizeof(SCmdHeight);
+    case CMD_TOLERANCE:         return sizeof(SCmdTolerance);
+    case CMD_GET_CLOUD_BEGIN:   return sizeof(SCmdGetCloudBegin);
+    case CMD_GET_CLOUD_NEXT:    return sizeof(SCmdGetCloudNext);
+    case CMD_GET_CLOUD_END:     return sizeof(SCmdGetCloudEnd);
+    case CMD_MISSION:           return sizeof(SCmdMission);
     default:
-        break;
+        return 0;
     }
-    return size;
 }
 
 CCommunicator::CCommunicator()

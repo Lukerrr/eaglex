@@ -24,11 +24,35 @@ void CUploadManager::BeginUpload(std::vector<geometry_msgs::Vector3> cloud)
 
     m_chunksNum = 0;
     m_cloud = cloud;
+
+    if(m_bLocked)
+    {
+        m_bLocked = false;
+    }
+}
+
+void CUploadManager::EndUpload()
+{
+    if(m_pointsNum <= 0)
+    {
+        return;
+    }
+
+    ROS_INFO_NAMED(LOG_NAME, "UploadManager: stopping upload...");
+
+    m_pointsNum = 0;
+    m_pointsNum = 0;
+    m_cloud.clear();
+}
+
+void CUploadManager::Unlock()
+{
+    m_bLocked = false;
 }
 
 void CUploadManager::Update()
 {
-    if(m_pointsNum > 0)
+    if(m_pointsNum > 0 && !m_bLocked)
     {
         SPointCloud cloud;
         cloud.cloudSize = m_pointsNum;
@@ -57,6 +81,10 @@ void CUploadManager::Update()
             m_pointsNum = 0;
             m_pointsNum = 0;
             m_cloud.clear();
+        }
+        else
+        {
+            m_bLocked = true;
         }
     }
 }
