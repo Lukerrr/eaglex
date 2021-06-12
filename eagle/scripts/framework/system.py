@@ -169,11 +169,9 @@ class CSystem:
             self.__droneLst.SendData(self.__systemState.value, self.__pointCloud.GetSize())
             self.__rate.sleep()
 
-
     ## ROS node interrupt exception callback
     def OnExit(self):
         self.__movCtrl.SetMode("AUTO.LAND")
-
 
     ## Perform the system state transition
     def __setState(self, st):
