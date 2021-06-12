@@ -180,6 +180,12 @@ def Deg2Rad(angle):
 def Rad2Deg(angle):
     return np.degrees(angle)
 
+## Convert distance in meters to degrees in geo-coordinates
+def MetersToGeoDegrees(m, lat):
+    # Earth mean radius
+    r = 6371032.0
+    return np.degrees(m / (abs(np.cos(np.radians(lat))) * 6371032.0))
+
 ##
 # Converts geographical coordinates (latitude, lontitude | degrees)
 # to cartesian (x, y | meters) coordinates (approximately)
@@ -192,4 +198,12 @@ def GeoToCartesian(lat, lon):
 
     x = r * np.cos(lat) * np.cos(lon)
     y = r * np.cos(lat) * np.sin(lon)
+    return x, y
+
+##
+# Calculates vector in cartesian coordinates (x, y | meters)
+# from p1 to p2 in geographical coordinates (latitude, lontitude | degrees)
+def GetCartesianOffset(gpos1, gpos2):
+    x = 1000.0*(gpos2[1]-gpos1[1])*40000*np.cos((gpos1[0]+gpos2[0])*np.pi/360)/360
+    y = 1000.0*(gpos2[0]-gpos1[0])*40000/360
     return x, y

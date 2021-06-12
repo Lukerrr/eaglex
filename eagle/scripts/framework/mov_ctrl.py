@@ -15,7 +15,6 @@ from mavros_msgs.srv import SetMode
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.srv import CommandLong
 
-
 ################################################################################
 ## PositionTarget dispatch flags.
 ################################################################################
@@ -33,7 +32,6 @@ class EPFlags(Enum):
     # Set yaw rate (angular velocity)
     SET_YAW_RATE = 2048
 
-
 ################################################################################
 ## A class to manage quadrotor's movement.
 ## Supports velocity and position control.
@@ -43,20 +41,19 @@ class EPFlags(Enum):
 ##  simState - current quadrotor state
 ##  pose - position data to dispatch
 ##  height - quadrotor height (distance to ground) (in meters)
-##  pos - quadrotor location (Vec3 structure, see math_utils)
-##  rot - quadrotor rotation (Rotator structure, see math_utils)
+##  pos - quadrotor local location in meters (Vec3 structure, see math_utils)
+##  rot - quadrotor rotation in radians (Rotator structure, see math_utils)
 ##  fwdVec - quadrotor forward vector (Vec3 structure, see math_utils)
 ##  rgtVec - quadrotor right vector (Vec3 structure, see math_utils)
 ##  upVec - quadrotor up vector (Vec3 structure, see math_utils)
 ###
-##  __gps - CGpsSystem instance
 ##  __stateSub - state topic subscruber
 ##  __poseSub - pose topic subscruber
 ##  __heightSub - ground distanceS topic subscruber
 ##  __localCtrlPub - local position target topic publisher
-##  __armingClient - service client to arm quadrotor
 ##  __setParamClient - service client to set autopilot parameters
 ##  __setModeClient - service client to set control mode
+##  __cmdClient - service client to send a MAVLink command
 ##
 ##
 ## Methods list:
@@ -74,7 +71,7 @@ class EPFlags(Enum):
 ################################################################################
 class CMovementController:
 
-    def __init__(self, gps):
+    def __init__(self):
         self.simState = State()
         self.pose = PositionTarget(type_mask = 0x0FFF)
 
@@ -85,13 +82,10 @@ class CMovementController:
         self.rgtVec = Vec3(0., 1., 0.)
         self.upVec = Vec3(0., 0., 1.)
 
-        self.__gps = gps
-
         self.__stateSub = rospy.Subscriber("mavros/state", State, self.__onStateChanged)
         self.__poseSub = rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.__onPoseChanged)
         self.__heightSub = rospy.Subscriber("mavros/px4flow/ground_distance", Range, self.__onHeightChanged)
         self.__localCtrlPub = rospy.Publisher("mavros/setpoint_raw/local", PositionTarget, queue_size = 10)
-        self.__armingClient = rospy.ServiceProxy("mavros/cmd/arming", CommandBool)
         self.__setParamClient = rospy.ServiceProxy("mavros/param/set", ParamSet)
         self.__setModeClient = rospy.ServiceProxy("mavros/set_mode", SetMode)
         self.__cmdClient = rospy.ServiceProxy("mavros/cmd/command", CommandLong)
@@ -142,8 +136,16 @@ class CMovementController:
                 paramIsArmed = 1.0
             else:
                 paramIsArmed = 0.0
-            self.__cmdClient(broadcast=False, command=400, confirmation=0, param1=paramIsArmed, param2=21196.0, param3=0.0, param4=0.0, param5=0.0, param6=0.0, param7=0.0)
-            #self.__armingClient(isArmed)
+            self.__cmdClient(broadcast=False,\
+                command=400,\
+                confirmation=0,\
+                param1=paramIsArmed,\
+                param2=21196.0,\
+                param3=0.0,\
+                param4=0.0,\
+                param5=0.0,\
+                param6=0.0,\
+                param7=0.0)
         except rospy.ServiceException as e:
             rospy.logerr("CMovementController: SetIsArmed error: %s", str(e))
 

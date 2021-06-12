@@ -2,42 +2,64 @@
 
 import rospy
 
-from framework.mov_ctrl import CMovementController
-
 from sensor_msgs.msg import BatteryState
 from eagle_comm.msg import DroneState
 
+################################################################################
+## A class to handle quadrotor's state values
+## and publish a state to the ground station.
+##
+## Fields list:
+##  __movCtrl - CMovementController instance ref to receive a local position data
+##  __gps - CGpsSystem instance ref to receive a global position data
+##  __mission - CMission instance ref to receive a mission data
+##  __batCharge - current battery charge in range [0.0; 1.0]
+##  __chargeSub - battery state topic subscriber
+##  __droneStatePub - drone state topic publisher
+##
+##
+## Methods list:
+##  SendData - collects all necessary state values and send to the ground station
+##  __onBatteryStateChanged - battery state topic callback function
+################################################################################
 class CDroneListener:
     def __init__(self, movCtrl, gps, mission):
+        self.__movCtrl = movCtrl
         self.__gps = gps
         self.__mission = mission
-        self.__movCtrl = movCtrl
         self.__batCharge = 0.0
         self.__chargeSub = rospy.Subscriber("mavros/battery", BatteryState, self.__onBatteryStateChanged)
         self.__droneStatePub = rospy.Publisher("eagle_comm/out/drone_state", DroneState, queue_size = 1)
     
+    ## 
+    # Collect all necessary state values and send to the ground station
+    #   systemState - mvoement system state (see ESystemState)
+    #   cloudSize - current number of points in the point cloud
     def SendData(self, systemState, cloudSize):
         state = DroneState()
-        state.lat = self.__gps.lat
-        state.lon = self.__gps.lon
-        state.heading = self.__gps.heading
-        state.globalPos = 1
-        state.pos.x = self.__movCtrl.pos.x
-        state.pos.y = self.__movCtrl.pos.y
-        state.pos.z = self.__movCtrl.pos.z
-        state.angles.x = self.__movCtrl.rot.roll
-        state.angles.y = self.__movCtrl.rot.pitch
-        state.angles.z = self.__movCtrl.rot.yaw
-        state.missionHash = self.__mission.hash
-        state.charge = self.__batCharge
         state.systemState = systemState
+        state.missionHash = self.__mission.hash
         state.cloudSize = cloudSize
-        state.armed = self.__movCtrl.simState.armed
-        state.offboard = (self.__movCtrl.simState.mode == "OFFBOARD")
+        if(self.__movCtrl.simState.connected):
+            state.lat = self.__gps.lat
+            state.lon = self.__gps.lon
+            state.heading = self.__gps.heading
+            state.globalPos = self.__gps.isValid
+            state.pos.x = self.__movCtrl.pos.x
+            state.pos.y = self.__movCtrl.pos.y
+            state.pos.z = self.__movCtrl.pos.z
+            state.angles.x = self.__movCtrl.rot.roll
+            state.angles.y = self.__movCtrl.rot.pitch
+            state.angles.z = self.__movCtrl.rot.yaw
+            state.charge = self.__batCharge
+            state.armed = self.__movCtrl.simState.armed
+            state.offboard = (self.__movCtrl.simState.mode == "OFFBOARD")
         self.__droneStatePub.publish(state)
     
+    ## Battery state topic callback function
     def __onBatteryStateChanged(self, bat):
         if(bat.present):
             self.__batCharge = bat.percentage
         else:
+            # No battery
             self.__batCharge = 0.0
