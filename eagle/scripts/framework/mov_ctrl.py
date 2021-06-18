@@ -6,11 +6,9 @@ from enum import Enum
 
 from helpers.math_utils import *
 from geometry_msgs.msg import PoseStamped
-from sensor_msgs.msg import Range
 from mavros_msgs.msg import PositionTarget
 from mavros_msgs.msg import State
 from mavros_msgs.msg import ParamValue
-from mavros_msgs.srv import CommandBool
 from mavros_msgs.srv import SetMode
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.srv import CommandLong
@@ -40,7 +38,6 @@ class EPFlags(Enum):
 ###
 ##  simState - current quadrotor state
 ##  pose - position data to dispatch
-##  height - quadrotor height (distance to ground) (in meters)
 ##  pos - quadrotor local location in meters (Vec3 structure, see math_utils)
 ##  rot - quadrotor rotation in radians (Rotator structure, see math_utils)
 ##  fwdVec - quadrotor forward vector (Vec3 structure, see math_utils)
@@ -59,7 +56,6 @@ class EPFlags(Enum):
 ## Methods list:
 ##  __onStateChanged - state topic callback function
 ##  __onPoseChanged - pose topic callback function
-##  __onHeightChanged - ground distance topic callback function
 ##  SetParam - sets autopilot parameter by ID
 ##  SetMode - sets quadrotor control mode
 ##  SetIsArmed - arms/disarms quadrotor
@@ -75,7 +71,6 @@ class CMovementController:
         self.simState = State()
         self.pose = PositionTarget(type_mask = 0x0FFF)
 
-        self.height = 0.0
         self.pos = Vec3(0., 0., 0.)
         self.rot = Rotator(0., 0., 0.)
         self.fwdVec = Vec3(1., 0., 0.)
@@ -84,7 +79,6 @@ class CMovementController:
 
         self.__stateSub = rospy.Subscriber("mavros/state", State, self.__onStateChanged)
         self.__poseSub = rospy.Subscriber("mavros/local_position/pose", PoseStamped, self.__onPoseChanged)
-        self.__heightSub = rospy.Subscriber("mavros/px4flow/ground_distance", Range, self.__onHeightChanged)
         self.__localCtrlPub = rospy.Publisher("mavros/setpoint_raw/local", PositionTarget, queue_size = 10)
         self.__setParamClient = rospy.ServiceProxy("mavros/param/set", ParamSet)
         self.__setModeClient = rospy.ServiceProxy("mavros/set_mode", SetMode)
@@ -106,10 +100,6 @@ class CMovementController:
         self.fwdVec = Vec3(1., 0., 0.).Rotate(self.rot)
         self.rgtVec = Vec3(0., 1., 0.).Rotate(self.rot)
         self.upVec = Vec3(0., 0., 1.).Rotate(self.rot)
-
-    ## Ground distance topic callback function
-    def __onHeightChanged(self, heightInfo):
-        self.height = heightInfo.range
 
     ## Set autopilot parameter by ID
     def SetParam(self, id, valInt, valFloat):
