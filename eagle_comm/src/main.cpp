@@ -31,9 +31,7 @@ void OnDroneStateUpdated(const eagle_comm::DroneState& msg)
     state.missionHash = msg.missionHash;
     state.cloudSize = msg.cloudSize;
 
-    state.bReady = msg.ready != 0;
     state.bArmed = msg.armed != 0;
-    state.bOffboard = msg.offboard != 0;
     state.charge = msg.charge;
 
     g_pComm->Send(state);
@@ -41,17 +39,19 @@ void OnDroneStateUpdated(const eagle_comm::DroneState& msg)
 
 void OnPointCloudReceived(const eagle_comm::PointCloud& msg)
 {
-    g_pComm->GetUploadManager().BeginUpload(msg.cloud);
-}
-
-void OnGetCloudNextCmd(const eagle_comm::GsCmdSimple& msg)
-{
-    g_pComm->GetUploadManager().Unlock();
-}
-
-void OnGetCloudEndCmd(const eagle_comm::GsCmdSimple& msg)
-{
-    g_pComm->GetUploadManager().EndUpload();
+    const geometry_msgs::Vector3* cloud = msg.cloud.data();
+    int pointsNum = msg.cloud.size();
+    while(pointsNum > 0)
+    {
+        SPointCloud chunk;
+        chunk.size = pointsNum > SPointCloud::chunkMaxSize ? SPointCloud::chunkMaxSize : pointsNum;
+        memcpy(chunk.cloud, cloud, chunk.size * sizeof(geometry_msgs::Vector3));
+        cloud += chunk.size;
+        pointsNum -= chunk.size;
+        g_pComm->Send(chunk);
+    }
+    SRspCloudEnd endMsg;
+    g_pComm->Send(endMsg);
 }
 
 int main(int argc, char **argv)
@@ -63,8 +63,6 @@ int main(int argc, char **argv)
 
     ros::Subscriber droneStateSub = nh.subscribe("out/drone_state", 1, OnDroneStateUpdated);
     ros::Subscriber pointCloudSub = nh.subscribe("out/point_cloud", 1, OnPointCloudReceived);
-    ros::Subscriber getCloudNextSub = nh.subscribe("in/cmd_get_cloud_next", 1, OnGetCloudNextCmd);
-    ros::Subscriber getCloudEndSub = nh.subscribe("in/cmd_get_cloud_end", 1, OnGetCloudEndCmd);
 
     ros::Rate loopRate(rate);
 

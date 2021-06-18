@@ -53,7 +53,6 @@ class CDroneListener:
             state.angles.z = self.__movCtrl.rot.yaw
             state.charge = self.__batCharge
             state.armed = self.__movCtrl.simState.armed
-            state.offboard = (self.__movCtrl.simState.mode == "OFFBOARD")
         self.__droneStatePub.publish(state)
     
     ## Battery state topic callback function

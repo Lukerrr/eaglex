@@ -36,13 +36,11 @@ DECLARE_MSG(RSP_DRONE_STATE, SRspDroneState,
     ESystemState systemState;
     uint32_t missionHash;
     uint32_t cloudSize;
-    bool bReady;
     bool bArmed;
-    bool bOffboard;
     float charge;
 )
 
-DECLARE_MSG(RSP_POINT_CLOUD, SRspPointCloud,
+DECLARE_MSG(RSP_CLOUD_CHUNK, SRspCloudChunk,
     struct CloudPt
     {
         double x;
@@ -50,11 +48,13 @@ DECLARE_MSG(RSP_POINT_CLOUD, SRspPointCloud,
         double z;
     };
 
-    uint32_t cloudSize;
+    uint32_t size;
 
-    static const int cloudMaxSize = 256; 
-    CloudPt cloud[cloudMaxSize];
+    static const int chunkMaxSize = 64; 
+    CloudPt cloud[chunkMaxSize];
 )
 
+DECLARE_MSG_NO_PARAMS(RSP_CLOUD_END, SRspCloudEnd)
+
 typedef SRspDroneState SDroneState;
-typedef SRspPointCloud SPointCloud;
+typedef SRspCloudChunk SPointCloud;

@@ -11,7 +11,5 @@ float32 charge
 uint32 missionHash
 uint32 cloudSize
 
-int8 ready
 int8 armed
-int8 offboard
 int8 systemState

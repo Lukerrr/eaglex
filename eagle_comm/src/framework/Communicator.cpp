@@ -4,7 +4,7 @@
 
 #include "ros/ros.h"
 
-#include <sys/fcntl.h>
+#include <sys/ioctl.h>
 #include <arpa/inet.h>
 
 #define CONN_PORT_DEF 54000
@@ -20,9 +20,7 @@ size_t GetCmdDataSize(ECmdType type)
     case CMD_STOP:              return sizeof(SCmdStop);
     case CMD_HEIGHT:            return sizeof(SCmdHeight);
     case CMD_TOLERANCE:         return sizeof(SCmdTolerance);
-    case CMD_GET_CLOUD_BEGIN:   return sizeof(SCmdGetCloudBegin);
-    case CMD_GET_CLOUD_NEXT:    return sizeof(SCmdGetCloudNext);
-    case CMD_GET_CLOUD_END:     return sizeof(SCmdGetCloudEnd);
+    case CMD_GET_CLOUD:         return sizeof(SCmdGetCloud);
     case CMD_MISSION:           return sizeof(SCmdMission);
     default:
         return 0;
@@ -58,7 +56,7 @@ void CCommunicator::Update()
         do
         {
             ECmdType cmdType;
-            dataLen = recv(m_clSock, &cmdType, sizeof(cmdType), 0);
+            dataLen = RecvInternal(m_clSock, &cmdType, sizeof(cmdType));
 
             if (dataLen == 0)
             {
@@ -76,7 +74,7 @@ void CCommunicator::Update()
                 if(dataSize > 0)
                 {
                     cmdData = new uint8_t[dataSize];
-                    recv(m_clSock, cmdData, dataSize, 0);
+                    RecvInternal(m_clSock, cmdData, dataSize);
                 }
                 m_cmdHandler.Invoke(cmdType, cmdData);
 
@@ -87,11 +85,7 @@ void CCommunicator::Update()
 
                 ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", cmdType);
             }
-
         } while (dataLen > 0);
-
-        // Update cloud uploader
-        m_uploadManager.Update();
     }
     else
     {
@@ -104,16 +98,29 @@ void CCommunicator::Update()
 
         if (m_clSock != -1)
         {
-            fcntl(m_clSock, F_SETFL, fcntl(m_clSock, F_GETFL, 0) | O_NONBLOCK);
             ROS_INFO_NAMED(LOG_NAME, "Communicator: Connected to a ground station '%s:%d' (%d)",
                            inet_ntoa(clAddr.sin_addr), clAddr.sin_port, m_clSock);
         }
     }
 }
 
-CUploadManager& CCommunicator::GetUploadManager()
+int CCommunicator::RecvInternal(int socket, void* buf, size_t len)
 {
-    return m_uploadManager;
+    u_long availBytes = 0;
+    int ioctlRes = ioctl(socket, FIONREAD, &availBytes);
+
+    if(ioctlRes == -1 || availBytes == 0)
+    {
+        return -1;
+    }
+
+    if(len > availBytes)
+    {
+        ROS_WARN_NAMED(LOG_NAME, "Communicator: requested receive more bytes than available (%lu > %lu)", len, availBytes);
+        len = availBytes;
+    }
+    
+    return recv(socket, buf, len, 0);
 }
 
 void CCommunicator::SendInternal(char* pData, int len)
@@ -122,11 +129,11 @@ void CCommunicator::SendInternal(char* pData, int len)
     {
         return;
     }
-    
+
     if (send(m_clSock, pData, len, 0) == -1)
     {
-        ROS_ERROR_NAMED(LOG_NAME, "Communicator: Cannot send a state (%s). Closing connection...", strerror(errno));
-        Invalidate();
+        ROS_ERROR_NAMED(LOG_NAME, "Communicator: Cannot send message (%s).", strerror(errno));
+        Initialize();
     }
 }
 
@@ -141,12 +148,17 @@ bool CCommunicator::Initialize()
         return false;
     }
 
-    fcntl(m_svSock, F_SETFL, fcntl(m_svSock, F_GETFL, 0) | O_NONBLOCK);
-
     sockaddr_in svSocketInfo;
     svSocketInfo.sin_family = AF_INET;
     svSocketInfo.sin_port = htons(m_port);
     svSocketInfo.sin_addr.s_addr = INADDR_ANY;
+
+    int opt = 1;
+    if (setsockopt(m_svSock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (opt)) == -1)
+    {
+        ROS_WARN_NAMED(LOG_NAME, "Communicator:%s: Set REUSEADDR error: %s", __func__, strerror(errno));
+    }
+
     if (bind(m_svSock, (sockaddr *)&svSocketInfo, sizeof(svSocketInfo)) == -1)
     {
         ROS_ERROR_NAMED(LOG_NAME, "Communicator:%s: Bind error: %s", __func__, strerror(errno));
@@ -172,12 +184,14 @@ void CCommunicator::Invalidate()
 
     if (m_svSock != -1)
     {
+        shutdown(m_svSock, SHUT_RDWR);
         close(m_svSock);
         m_svSock = -1;
     }
 
     if (m_clSock != -1)
     {
+        shutdown(m_clSock, SHUT_RDWR);
         close(m_clSock);
         m_clSock = -1;
     }

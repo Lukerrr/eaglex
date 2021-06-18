@@ -4,7 +4,7 @@ import rospy
 
 from helpers.ros_globals import *
 from framework.gps import CGpsSystem
-from framework.mission_local import CMission
+from framework.mission import CMission
 from framework.mov_ctrl import CMovementController
 from framework.point_cloud import CPointCloud
 from framework.drone_listener import CDroneListener
@@ -73,7 +73,7 @@ class CSystem:
         self.__disarmSub = rospy.Subscriber("eagle_comm/in/cmd_disarm", GsCmdSimple, self.__onCmdDisarm)
         self.__startSub = rospy.Subscriber("eagle_comm/in/cmd_start", GsCmdSimple, self.__onCmdStart)
         self.__stopSub = rospy.Subscriber("eagle_comm/in/cmd_stop", GsCmdSimple, self.__onCmdStop)
-        self.__getCloudBeginSub = rospy.Subscriber("eagle_comm/in/cmd_get_cloud", GsCmdSimple, self.__onCmdGetCloudBegin)
+        self.__getCloudBeginSub = rospy.Subscriber("eagle_comm/in/cmd_get_cloud", GsCmdSimple, self.__onCmdGetCloud)
 
     ## The application working function
     def Run(self):
@@ -223,7 +223,7 @@ class CSystem:
         else:
             rospy.loginfo("CSystem: invalid working state '%s'", self.__systemState.name)
     
-    ## Cmd GET_CLOUD_BEGIN callback
-    def __onCmdGetCloudBegin(self, cmd):
-        rospy.loginfo("CSystem: command 'GET_CLOUD_BEGIN' received")
+    ## Cmd GET_CLOUD callback
+    def __onCmdGetCloud(self, cmd):
+        rospy.loginfo("CSystem: command 'GET_CLOUD_' received")
         self.__pointCloud.PublishCloud()

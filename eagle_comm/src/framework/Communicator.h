@@ -2,7 +2,6 @@
 
 #include "Singleton.h"
 #include "CommandHandler.h"
-#include "UploadManager.h"
 #include "RspMsgs.h"
 
 #define g_pComm ((&CCommunicator::Instance()))
@@ -14,7 +13,6 @@ public:
     ~CCommunicator();
 
     void Update();
-    CUploadManager& GetUploadManager();
 
     template<typename T>
     void Send(T msg);
@@ -23,12 +21,12 @@ private:
     bool Initialize();
     void Invalidate();
 
+    int RecvInternal(int socket, void* buf, size_t len);
     void SendInternal(char* pData, int len);
 
     uint16_t m_port;
 
     CCommandHandler m_cmdHandler;
-    CUploadManager m_uploadManager;
 
     int m_svSock = -1;
     int m_clSock = -1;

@@ -132,7 +132,6 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/framework/CommandHandler.cpp
   src/framework/Communicator.cpp
-  src/framework/UploadManager.cpp
 )
 
 ## Add cmake target dependencies of the library
