@@ -15,8 +15,6 @@ import numpy as np
 ##
 ## Fields list:
 ###
-##  isLocked - whether or not the path changes are locked (e.g. during flight)
-##  isBusy - whether or not the mission is currently executed
 ##  hash - current mission crc32 hash number for validation
 ##  targetHeight - flight height in meters
 ##  __tolerance - distance to reach path points in meters
@@ -34,19 +32,19 @@ import numpy as np
 ##  IsValid - returns true if the path and the mission parameters are valid
 ##  Reset - resets mission to start
 ##  Update - updates the mission execution
+##  __incrementTarget - increment target point index
 ##  __onMissionChanged - mission path topic callback
 ##  __onHeightChanged - target height topic callback
 ##  __onToleranceChanged - tolerance topic callback
 ################################################################################
 class CMission:
     def __init__(self, movCtrl, gps):
-        self.isLocked = True
-        self.isBusy = False
         self.hash = 0xFFFFFFFF
 
         self.__gps = gps
         self.__movCtrl = movCtrl
 
+        self.__pathGlobal = []
         self.__path = []
         self.__curIdx = 0
 
@@ -60,15 +58,15 @@ class CMission:
     # Returns true if the path and the mission parameters are valid
     def IsValid(self):
         hashValid = self.hash != 0xFFFFFFFF
-        pathValid = len(self.__path) >= 2
-        heightValid = self.targetHeight >= 1.5
+        pathValid = len(self.__pathGlobal) >= 2
+        heightValid = self.targetHeight >= 0.5
         toleranceValid = self.__tolerance > 0.0
         
         if(not hashValid):
             rospy.logwarn("CMission::IsValid: invalid mission hash")
 
         if(not pathValid):
-            rospy.logwarn("CMission::IsValid: invalid path ('%s')", str(self.__path))
+            rospy.logwarn("CMission::IsValid: invalid path ('%s')", str(self.__pathGlobal))
         
         if(not heightValid):
             rospy.logwarn("CMission::IsValid: invalid target height (%f)", self.targetHeight)
@@ -80,63 +78,79 @@ class CMission:
 
     # Reset mission to start
     def Reset(self):
-        if(len(self.__path) >= 2):
-            rospy.loginfo("CMission: reset to start")
-            # Set current position as the return point
-            self.__path[-1] = [self.__gps.lat, self.__gps.lon]
-            self.__curIdx = 0
-        else:
+        rospy.loginfo("CMission: requested reset")
+
+        if(not self.__gps.isValid):
+            rospy.loginfo("CMission: failed to reset - no GPS data")
+            return False
+
+        if(len(self.__pathGlobal) < 2):
             rospy.loginfo("CMission: failed to reset - invalid path")
+            return False
+
+        rospy.loginfo("CMission: rebuilding path...")
+        
+        self.__path.clear()
+
+        # Converting path to local space
+        curPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
+        curPosGps = [self.__gps.lat, self.__gps.lon]
+        for pt in self.__pathGlobal:
+            dx, dy = GetCartesianOffset(curPosGps, pt)
+            self.__path.append([curPos[0] + dx, curPos[1] + dy])
+
+        # Set current position as the return point
+        self.__path.append([curPos[0], curPos[1]])
+
+        # Reset target point
+        self.__curIdx = -1
+        self.__incrementTarget()
+
+        rospy.loginfo("CMission: reset is done!")
+        return True
 
     ## Update the mission execution
     def Update(self):
         if(self.__curIdx >= len(self.__path)):
             # Last point is reached
-            if(self.isBusy):
-                self.isBusy = False
             return True
-        
-        if(not self.isBusy):
-            self.isBusy = True
 
-        curPos = [self.__gps.lat, self.__gps.lon]
+        curPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
         trgPt = self.__path[self.__curIdx]
         prevPt = self.__path[self.__curIdx - 1]
 
         # Set target position
-        dx, dy = GetCartesianOffset(curPos, trgPt)
-        targetPosDelta = Vec3(dx, dy, 0.0)
-        self.__movCtrl.SetPos(targetPosDelta.x + self.__movCtrl.pos.x, targetPosDelta.y + self.__movCtrl.pos.y, self.targetHeight)
+        self.__movCtrl.SetPos(trgPt[0], trgPt[1], self.targetHeight)
 
         # Set target yaw
-        dx, dy = GetCartesianOffset(prevPt, trgPt)
+        dx = trgPt[0] - prevPt[0]
+        dy = trgPt[1] - prevPt[1]
         targetYaw = np.arctan2(dy, dx)
         self.__movCtrl.SetYaw(targetYaw)
         
-        latError = abs(curPos[0] - trgPt[0])
-        lonError = abs(curPos[1] - trgPt[1])
-
-        # Convert tolerance from meters to degrees
-        tol = MetersToGeoDegrees(self.__tolerance, trgPt[0])
+        xError = abs(curPos[0] - trgPt[0])
+        yError = abs(curPos[1] - trgPt[1])
         
-        if(latError <= tol and lonError <= tol):
-            rospy.loginfo("CMission::Update: passed waypoint #%d of #%d", self.__curIdx + 1, len(self.__path))
-            self.__curIdx += 1
+        if(xError <= self.__tolerance and yError <= self.__tolerance):
+            self.__incrementTarget()
+            rospy.loginfo("CMission: passed waypoint #%d of #%d", self.__curIdx, len(self.__path))
 
         return False
 
+    ## Increment target point index
+    def __incrementTarget(self):
+        self.__curIdx += 1
+        if(self.__curIdx < len(self.__path)):
+            trgPt = self.__path[self.__curIdx]
+            rospy.loginfo("CMission: target point updated to [%.3f, %.3f]", trgPt[0], trgPt[1])
+
     ## Mission path topic callback
     def __onMissionChanged(self, mission):
-        if(self.isLocked):
-            rospy.logwarn("CMission: data received, but mission is locked")
-        else:
-            self.hash = mission.hash
-            self.__path = []
-            for ptGeo in mission.path:
-                self.__path.append([ptGeo.x, ptGeo.y])
-            # An extra point for return to home position
-            self.__path.append([self.__gps.lat, self.__gps.lon])
-            rospy.loginfo("CMission: mission updated (hash = %#08x)", self.hash)
+        self.hash = mission.hash
+        self.__pathGlobal.clear()
+        for ptGeo in mission.path:
+            self.__pathGlobal.append([ptGeo.x, ptGeo.y])
+        rospy.loginfo("CMission: mission updated (hash = %#08x)", self.hash)
 
     ## Target height topic callback
     def __onHeightChanged(self, height):

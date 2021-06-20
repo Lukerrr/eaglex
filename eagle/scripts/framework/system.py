@@ -4,7 +4,7 @@ import rospy
 
 from helpers.ros_globals import *
 from framework.gps import CGpsSystem
-from framework.mission import CMission
+from framework.mission_local import CMission
 from framework.mov_ctrl import CMovementController
 from framework.point_cloud import CPointCloud
 from framework.drone_listener import CDroneListener
@@ -99,9 +99,6 @@ class CSystem:
                 self.__setState(ESystemState.IDLE)
 
             isWorking = self.__systemState.value > ESystemState.IDLE.value
-                
-            # Prevent mission changes if working
-            self.__mission.isLocked = isWorking
 
             # Validate mission if working
             if(isWorking and not self.__mission.IsValid()):
@@ -143,7 +140,6 @@ class CSystem:
                     if(self.__movCtrl.pos.z >= self.__mission.targetHeight * 0.9):
                         rospy.loginfo("CSystem: takeoff was done at height %f", self.__movCtrl.pos.z)
                         self.__setState(ESystemState.WORKING)
-                        self.__mission.Reset()
                         self.__takeoffPos = None
 
                 # State WORKING
@@ -204,13 +200,16 @@ class CSystem:
     ## Cmd START callback
     def __onCmdStart(self, cmd):
         rospy.loginfo("CSystem: command 'START' received")
-        if(self.__systemState == ESystemState.IDLE):
-            if(self.__movCtrl.simState.armed):
-                self.__setState(ESystemState.TAKEOFF)
-            else:
-                rospy.loginfo("CSystem: cannot work if disarmed")
-        else:
+        if(self.__systemState != ESystemState.IDLE):
             rospy.loginfo("CSystem: cannot work from state '%s'", self.__systemState.name)
+        elif(not self.__movCtrl.simState.armed):
+            rospy.loginfo("CSystem: cannot work - disarmed")
+        elif(not self.__mission.IsValid()):
+            rospy.loginfo("CSystem: cannot work - invalid mission")
+        elif(not self.__mission.Reset()):
+            rospy.loginfo("CSystem: cannot work - mission reset failed")
+        else:
+            self.__setState(ESystemState.TAKEOFF)
 
     ## Cmd STOP callback
     def __onCmdStop(self, cmd):

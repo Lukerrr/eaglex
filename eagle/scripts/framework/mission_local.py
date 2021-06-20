@@ -2,6 +2,7 @@
 
 import rospy
 
+from eagle_comm.msg import GsCmdMission
 from eagle_comm.msg import GsCmdFloat
 
 from helpers.math_utils import *
@@ -10,11 +11,7 @@ import numpy as np
 
 class CMission:
     def __init__(self, movCtrl, gps):
-        self.isLocked = True
-        self.isBusy = False
         self.hash = 0xFFFFFFFF
-
-        self.__gps = gps
         self.__movCtrl = movCtrl
 
         sp = 5.0
@@ -30,12 +27,13 @@ class CMission:
         self.targetHeight = 0.0
         self.__tolerance = 0.0
 
+        self.__missionSub = rospy.Subscriber("eagle_comm/in/cmd_mission", GsCmdMission, self.__onMissionChanged)
         self.__heightSub = rospy.Subscriber("eagle_comm/in/cmd_height", GsCmdFloat, self.__onHeightChanged)
         self.__toleranceSub = rospy.Subscriber("eagle_comm/in/cmd_tolerance", GsCmdFloat, self.__onToleranceChanged)
 
     def IsValid(self):
         pathValid = len(self.__path) >= 2
-        heightValid = self.targetHeight >= 1.5
+        heightValid = self.targetHeight >= 0.5
         toleranceValid = self.__tolerance > 0.0
 
         if(not pathValid):
@@ -50,31 +48,30 @@ class CMission:
         return pathValid and heightValid and toleranceValid
     
     def Reset(self):
-        if(len(self.__path) >= 2):
-            rospy.loginfo("CMissionLocal: reset to start")
-            self.__curIdx = 0
-        else:
-            rospy.loginfo("CMissionLocal: failed to reset - invalid path")
+        rospy.loginfo("CMission: requested reset")
+
+        if(len(self.__path) < 2):
+            rospy.loginfo("CMission: failed to reset - invalid path")
+            return False
+
+        # Reset target point
+        self.__curIdx = -1
+        self.__incrementTarget()
+
+        rospy.loginfo("CMission: reset is done!")
+        return True
 
     def Update(self):
         if(self.__curIdx >= len(self.__path)):
             # Last point is reached
-            if(self.isBusy):
-                self.isBusy = False
             return True
-        
-        if(not self.isBusy):
-            self.isBusy = True
 
         curPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
         trgPt = self.__path[self.__curIdx]
         prevPt = self.__path[self.__curIdx - 1]
 
         # Set target position
-        dx = trgPt[0] - curPos[0]
-        dy = trgPt[1] - curPos[1]
-        targetPosDelta = Vec3(dx, dy, 0.0)
-        self.__movCtrl.SetPos(targetPosDelta.x + self.__movCtrl.pos.x, targetPosDelta.y + self.__movCtrl.pos.y, self.targetHeight)
+        self.__movCtrl.SetPos(trgPt[0], trgPt[1], self.targetHeight)
 
         # Set target yaw
         dx = trgPt[0] - prevPt[0]
@@ -86,10 +83,20 @@ class CMission:
         yError = abs(curPos[1] - trgPt[1])
         
         if(xError <= self.__tolerance and yError <= self.__tolerance):
-            rospy.loginfo("CMissionLocal::Update: passed waypoint #%d of #%d", self.__curIdx + 1, len(self.__path))
-            self.__curIdx += 1
+            self.__incrementTarget()
+            rospy.loginfo("CMissionLocal: passed waypoint #%d of #%d", self.__curIdx, len(self.__path))
 
         return False
+
+    def __incrementTarget(self):
+        self.__curIdx += 1
+        if(self.__curIdx < len(self.__path)):
+            trgPt = self.__path[self.__curIdx]
+            rospy.loginfo("CMissionLocal: target point updated to [%.3f, %.3f]", trgPt[0], trgPt[1])
+
+    def __onMissionChanged(self, mission):
+        self.hash = mission.hash
+        rospy.loginfo("CMissionLocal: mission updated (hash = %#08x)", self.hash)
 
     def __onHeightChanged(self, height):
         self.targetHeight = height.value
