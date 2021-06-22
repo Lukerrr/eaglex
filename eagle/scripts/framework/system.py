@@ -6,11 +6,13 @@ from helpers.ros_globals import *
 from framework.gps import CGpsSystem
 from framework.mission_local import CMission
 from framework.mov_ctrl import CMovementController
+from framework.lidar import CLidar
 from framework.point_cloud import CPointCloud
 from framework.drone_listener import CDroneListener
 from framework.system_state import ESystemState
 
 from eagle_comm.msg import GsCmdSimple
+import tf
 
 ################################################################################
 ## The application main class that controlls other subsystems.
@@ -55,6 +57,7 @@ class CSystem:
         rate = rospy.get_param("rate", default = 50)
         self.__movCtrl = CMovementController()
         self.__gps = CGpsSystem(self.__movCtrl, 1.0 / rate)
+        self.__lidar = CLidar(160.0)
         self.__pointCloud = CPointCloud(self.__movCtrl)
         self.__mission = CMission(self.__movCtrl, self.__gps)
         self.__droneLst = CDroneListener(self.__movCtrl, self.__gps, self.__mission)
@@ -84,6 +87,11 @@ class CSystem:
             self.__rate.sleep()
             if(self.__time > 0.0):
                 break
+        
+        # Wait for transforms
+        rospy.loginfo("CSystem: waiting for transforms...")
+        tf.TransformListener().waitForTransform("/laser", "/map", rospy.Time(), rospy.Duration(15.0))
+        tf.TransformListener().lookupTransform("/laser", "/map", rospy.Time())
 
         rospy.loginfo("CSystem: begin working loop")
         # Working loop
@@ -162,6 +170,7 @@ class CSystem:
                 rospy.logwarn("CSystem: delta time was invalid (%f) at %f sec.", dt, curTime)
 
             self.__movCtrl.DispatchPosition()
+            self.__lidar.UpdateData()
             self.__droneLst.SendData(self.__systemState.value, self.__pointCloud.GetSize())
             self.__rate.sleep()
 

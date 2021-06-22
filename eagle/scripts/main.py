@@ -2,7 +2,7 @@
 
 ## For python3 - fix paths
 import sys
-#sys.path.append('/home/odroid/Workspace/eaglex/src/eagle/scripts')
+sys.path.append('/home/odroid/Workspace/eaglex/src/eagle/scripts')
 sys.path.append('/home/lukerrr/Workspace/catkin_ws/src/eagle/scripts')
 ##
 
