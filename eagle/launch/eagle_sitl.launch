@@ -8,5 +8,7 @@
     </node>
     <node pkg="eagle" type="main.py" name="eagle" output="screen">
         <param name="rate" type="int" value="50"/>
+        <param name="lidar_fov_deg" type="double" value="270"/>
+        <param name="lidar_effective_fov_deg" type="double" value="160"/>
     </node>
 </launch>

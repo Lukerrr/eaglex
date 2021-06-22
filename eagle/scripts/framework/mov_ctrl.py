@@ -15,8 +15,6 @@ from mavros_msgs.srv import SetMode
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.srv import CommandLong
 
-import tf
-
 ################################################################################
 ## PositionTarget dispatch flags.
 ################################################################################
@@ -104,12 +102,6 @@ class CMovementController:
         self.fwdVec = Vec3(1., 0., 0.).Rotate(self.rot)
         self.rgtVec = Vec3(0., 1., 0.).Rotate(self.rot)
         self.upVec = Vec3(0., 0., 1.).Rotate(self.rot)
-
-        # Broadcast body frame transform
-        br = tf.TransformBroadcaster()
-        translation = (self.pos.x, self.pos.y, self.pos.z)
-        rotation = (quat.x, quat.y, quat.z, quat.w)
-        br.sendTransform(translation, rotation, now(), "base_link", "map")
 
     ## Set autopilot parameter by ID
     def SetParam(self, id, valInt, valFloat):

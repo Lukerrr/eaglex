@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+from framework.tf_manager import CTfManager
 import rospy
 
 from helpers.ros_globals import *
+from framework.tf_manager import CTfManager
 from framework.gps import CGpsSystem
-from framework.mission_local import CMission
+from framework.mission import CMission
 from framework.mov_ctrl import CMovementController
 from framework.lidar import CLidar
 from framework.point_cloud import CPointCloud
@@ -19,6 +21,7 @@ import tf
 ##
 ## Fields list:
 ###
+##  __tfMan - frame transforms broadcaster
 ##  __movCtrl - the movement control subsystem
 ##  __gps - global position subsystem
 ##  __pointCloud - the point cloud management subsystem
@@ -55,9 +58,12 @@ class CSystem:
     def __init__(self):
         rospy.init_node("eagle", anonymous = True)
         rate = rospy.get_param("rate", default = 50)
+        lidarFovDeg = rospy.get_param("lidar_fov_deg", default = 270)
+        lidarEffectiveFovDeg = rospy.get_param("lidar_effective_fov_deg", default = 160)
+        self.__tfMan = CTfManager()
         self.__movCtrl = CMovementController()
         self.__gps = CGpsSystem(self.__movCtrl, 1.0 / rate)
-        self.__lidar = CLidar(160.0)
+        self.__lidar = CLidar(lidarFovDeg, lidarEffectiveFovDeg)
         self.__pointCloud = CPointCloud(self.__movCtrl)
         self.__mission = CMission(self.__movCtrl, self.__gps)
         self.__droneLst = CDroneListener(self.__movCtrl, self.__gps, self.__mission)
@@ -87,11 +93,6 @@ class CSystem:
             self.__rate.sleep()
             if(self.__time > 0.0):
                 break
-        
-        # Wait for transforms
-        rospy.loginfo("CSystem: waiting for transforms...")
-        tf.TransformListener().waitForTransform("/laser", "/map", rospy.Time(), rospy.Duration(15.0))
-        tf.TransformListener().lookupTransform("/laser", "/map", rospy.Time())
 
         rospy.loginfo("CSystem: begin working loop")
         # Working loop
@@ -100,6 +101,8 @@ class CSystem:
             curTime = now().to_sec()
             dt = curTime - self.__time
             self.__time = curTime
+
+            self.__tfMan.UpdateTransforms()
 
             # Detect auto-disarm
             if(not self.__movCtrl.simState.armed and self.__systemState.value > ESystemState.IDLE.value):
