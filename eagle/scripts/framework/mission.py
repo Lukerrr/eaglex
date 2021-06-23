@@ -16,7 +16,7 @@ import numpy as np
 ## Fields list:
 ###
 ##  hash - current mission crc32 hash number for validation
-##  targetHeight - flight height in meters
+##  __targetHeight - flight height in meters
 ##  __tolerance - distance to reach path points in meters
 ##  __path - mission geographical points array
 ##  __curIdx - target point index
@@ -27,11 +27,12 @@ import numpy as np
 ##  __heightSub - target height topic subscriber
 ##  __toleranceSub - tolerance topic subscriber
 ##
-##
 ## Methods list:
 ##  IsValid - returns true if the path and the mission parameters are valid
 ##  Reset - resets mission to start
 ##  Update - updates the mission execution
+##  GetHeight - returns current target height value
+##  GetTolerance - returns current flight tolerance value
 ##  __incrementTarget - increment target point index
 ##  __onMissionChanged - mission path topic callback
 ##  __onHeightChanged - target height topic callback
@@ -48,8 +49,8 @@ class CMission:
         self.__path = []
         self.__curIdx = 0
 
-        self.targetHeight = 0.0
-        self.__tolerance = 0.0
+        self.__targetHeight = 1.5
+        self.__tolerance = 1.0
 
         self.__missionSub = rospy.Subscriber("eagle_comm/in/cmd_mission", GsCmdMission, self.__onMissionChanged)
         self.__heightSub = rospy.Subscriber("eagle_comm/in/cmd_height", GsCmdFloat, self.__onHeightChanged)
@@ -59,7 +60,7 @@ class CMission:
     def IsValid(self):
         hashValid = self.hash != 0xFFFFFFFF
         pathValid = len(self.__pathGlobal) >= 2
-        heightValid = self.targetHeight >= 0.5
+        heightValid = self.__targetHeight >= 0.5
         toleranceValid = self.__tolerance > 0.0
         
         if(not hashValid):
@@ -69,7 +70,7 @@ class CMission:
             rospy.logwarn("CMission::IsValid: invalid path ('%s')", str(self.__pathGlobal))
         
         if(not heightValid):
-            rospy.logwarn("CMission::IsValid: invalid target height (%f)", self.targetHeight)
+            rospy.logwarn("CMission::IsValid: invalid target height (%f)", self.__targetHeight)
         
         if(not toleranceValid):
             rospy.logwarn("CMission::IsValid: invalid tolerance (%f)", self.__tolerance)
@@ -120,7 +121,7 @@ class CMission:
         prevPt = self.__path[self.__curIdx - 1]
 
         # Set target position
-        self.__movCtrl.SetPos(trgPt[0], trgPt[1], self.targetHeight)
+        self.__movCtrl.SetPos(trgPt[0], trgPt[1], self.__targetHeight)
 
         # Set target yaw
         dx = trgPt[0] - prevPt[0]
@@ -136,6 +137,14 @@ class CMission:
             rospy.loginfo("CMission: passed waypoint #%d of #%d", self.__curIdx, len(self.__path))
 
         return False
+    
+    ## Returns current target height value
+    def GetHeight(self):
+        return self.__targetHeight
+    
+    ## Returns current flight tolerance value
+    def GetTolerance(self):
+        return self.__tolerance
 
     ## Increment target point index
     def __incrementTarget(self):
@@ -154,9 +163,9 @@ class CMission:
 
     ## Target height topic callback
     def __onHeightChanged(self, height):
-        self.targetHeight = height.value
-        self.__movCtrl.SetParam("MIS_TAKEOFF_ALT", 0, self.targetHeight)
-        rospy.loginfo("CMission: target height updated (%f)", self.targetHeight)
+        self.__targetHeight = height.value
+        self.__movCtrl.SetParam("MIS_TAKEOFF_ALT", 0, self.__targetHeight)
+        rospy.loginfo("CMission: target height updated (%f)", self.__targetHeight)
 
     ## Tolerance topic callback
     def __onToleranceChanged(self, tolerance):

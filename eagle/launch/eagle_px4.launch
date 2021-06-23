@@ -5,12 +5,13 @@
     </include>
     <node pkg="eagle_comm" type="comm" name="eagle_comm" output="screen">
         <param name="port" type="int" value="54000"/>
-        <param name="rate" type="int" value="50"/>
+        <param name="rate" type="int" value="100"/>
     </node>
     <node pkg="eagle" type="main.py" name="eagle" output="screen">
-        <param name="rate" type="int" value="50"/>
+        <param name="rate" type="int" value="100"/>
         <param name="lidar_fov_deg" type="double" value="270"/>
         <param name="lidar_effective_fov_deg" type="double" value="160"/>
+        <param name="lidar_claster_size" type="int" value="1"/>
     </node>
     <node pkg="urg_node" type="urg_node" name="laser_scan" output="screen">
         <param name="ip_address" type="string" value="192.168.0.10"/>

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from framework.tf_manager import CTfManager
 import rospy
 
 from helpers.ros_globals import *
@@ -14,7 +13,6 @@ from framework.drone_listener import CDroneListener
 from framework.system_state import ESystemState
 
 from eagle_comm.msg import GsCmdSimple
-import tf
 
 ################################################################################
 ## The application main class that controlls other subsystems.
@@ -41,7 +39,6 @@ import tf
 ##  __stopSub - STOP command topic subscriber
 ##  __getCloudBeginSub - GET_CLOUD_BEGIN command topic subscriber
 ##
-##
 ## Methods list:
 ###
 ##  Run - the application working function
@@ -60,13 +57,14 @@ class CSystem:
         rate = rospy.get_param("rate", default = 50)
         lidarFovDeg = rospy.get_param("lidar_fov_deg", default = 270)
         lidarEffectiveFovDeg = rospy.get_param("lidar_effective_fov_deg", default = 160)
+        lidarClasterSize = rospy.get_param("lidar_claster_size", default = 1)
         self.__tfMan = CTfManager()
         self.__movCtrl = CMovementController()
         self.__gps = CGpsSystem(self.__movCtrl, 1.0 / rate)
-        self.__lidar = CLidar(lidarFovDeg, lidarEffectiveFovDeg)
-        self.__pointCloud = CPointCloud(self.__movCtrl)
+        self.__lidar = CLidar(lidarFovDeg, lidarEffectiveFovDeg, lidarClasterSize)
+        self.__pointCloud = CPointCloud(self.__lidar)
         self.__mission = CMission(self.__movCtrl, self.__gps)
-        self.__droneLst = CDroneListener(self.__movCtrl, self.__gps, self.__mission)
+        self.__droneLst = CDroneListener(self.__movCtrl, self.__gps, self.__mission, self.__pointCloud)
         self.__rate = rospy.Rate(rate)
         self.__systemState = ESystemState.DISCONNECTED
         self.__lastState = ESystemState.IDLE
@@ -147,8 +145,8 @@ class CSystem:
                 elif(self.__systemState == ESystemState.TAKEOFF):
                     if(self.__takeoffPos == None):
                         self.__takeoffPos = [self.__movCtrl.pos.x, self.__movCtrl.pos.y]
-                    self.__movCtrl.SetPos(self.__takeoffPos[0], self.__takeoffPos[1], self.__mission.targetHeight)
-                    if(self.__movCtrl.pos.z >= self.__mission.targetHeight * 0.9):
+                    self.__movCtrl.SetPos(self.__takeoffPos[0], self.__takeoffPos[1], self.__mission.GetHeight())
+                    if(self.__movCtrl.pos.z >= self.__mission.GetHeight() * 0.9):
                         rospy.loginfo("CSystem: takeoff was done at height %f", self.__movCtrl.pos.z)
                         self.__setState(ESystemState.WORKING)
                         self.__takeoffPos = None
@@ -158,6 +156,8 @@ class CSystem:
                     if(self.__mission.Update()):
                         rospy.loginfo("CSystem: mission is done, landing...")
                         self.__setState(ESystemState.LANDING)
+                    else:
+                        self.__pointCloud.UpdateCloud()
 
                 # State LANDING
                 elif(self.__systemState == ESystemState.LANDING):
@@ -173,8 +173,7 @@ class CSystem:
                 rospy.logwarn("CSystem: delta time was invalid (%f) at %f sec.", dt, curTime)
 
             self.__movCtrl.DispatchPosition()
-            self.__lidar.UpdateData()
-            self.__droneLst.SendData(self.__systemState.value, self.__pointCloud.GetSize())
+            self.__droneLst.SendData(self.__systemState.value)
             self.__rate.sleep()
 
     ## ROS node interrupt exception callback
@@ -221,6 +220,7 @@ class CSystem:
         elif(not self.__mission.Reset()):
             rospy.loginfo("CSystem: cannot work - mission reset failed")
         else:
+            self.__pointCloud.Reset()
             self.__setState(ESystemState.TAKEOFF)
 
     ## Cmd STOP callback

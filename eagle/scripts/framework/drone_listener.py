@@ -5,7 +5,7 @@ import rospy
 from sensor_msgs.msg import BatteryState
 from eagle_comm.msg import DroneState
 
-################################################################################
+######################################################################################
 ## A class to handle quadrotor's state values
 ## and publish a state to the ground station.
 ##
@@ -13,20 +13,21 @@ from eagle_comm.msg import DroneState
 ##  __movCtrl - CMovementController instance ref to receive a local position data
 ##  __gps - CGpsSystem instance ref to receive a global position data
 ##  __mission - CMission instance ref to receive a mission data
+##  __pointCloud - CPointCloud instance ref to receive a point cloud data
 ##  __batCharge - current battery charge in range [0.0; 1.0]
 ##  __chargeSub - battery state topic subscriber
 ##  __droneStatePub - drone state topic publisher
 ##
-##
 ## Methods list:
 ##  SendData - collects all necessary state values and send to the ground station
 ##  __onBatteryStateChanged - battery state topic callback function
-################################################################################
+######################################################################################
 class CDroneListener:
-    def __init__(self, movCtrl, gps, mission):
+    def __init__(self, movCtrl, gps, mission, pointCloud):
         self.__movCtrl = movCtrl
         self.__gps = gps
         self.__mission = mission
+        self.__pointCloud = pointCloud
         self.__batCharge = 0.0
         self.__chargeSub = rospy.Subscriber("mavros/battery", BatteryState, self.__onBatteryStateChanged)
         self.__droneStatePub = rospy.Publisher("eagle_comm/out/drone_state", DroneState, queue_size = 1)
@@ -34,12 +35,14 @@ class CDroneListener:
     ## 
     # Collect all necessary state values and send to the ground station
     #   systemState - mvoement system state (see ESystemState)
-    #   cloudSize - current number of points in the point cloud
-    def SendData(self, systemState, cloudSize):
+    def SendData(self, systemState):
         state = DroneState()
         state.systemState = systemState
         state.missionHash = self.__mission.hash
-        state.cloudSize = cloudSize
+        state.height = self.__mission.GetHeight()
+        state.tolerance = self.__mission.GetTolerance()
+        state.density = self.__pointCloud.GetDensity()
+        state.cloudSize = self.__pointCloud.GetSize()
         if(self.__movCtrl.simState.connected):
             state.lat = self.__gps.lat
             state.lon = self.__gps.lon

@@ -29,6 +29,9 @@ void OnDroneStateUpdated(const eagle_comm::DroneState& msg)
 
     state.systemState = (ESystemState)msg.systemState;
     state.missionHash = msg.missionHash;
+    state.height = msg.height;
+    state.tolerance = msg.tolerance;
+    state.density = msg.density;
     state.cloudSize = msg.cloudSize;
 
     state.bArmed = msg.armed != 0;

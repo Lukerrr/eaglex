@@ -24,8 +24,8 @@ class CMission:
         ]
         self.__curIdx = 0
 
-        self.targetHeight = 0.0
-        self.__tolerance = 0.0
+        self.__targetHeight = 1.5
+        self.__tolerance = 1.0
 
         self.__missionSub = rospy.Subscriber("eagle_comm/in/cmd_mission", GsCmdMission, self.__onMissionChanged)
         self.__heightSub = rospy.Subscriber("eagle_comm/in/cmd_height", GsCmdFloat, self.__onHeightChanged)
@@ -33,14 +33,14 @@ class CMission:
 
     def IsValid(self):
         pathValid = len(self.__path) >= 2
-        heightValid = self.targetHeight >= 0.5
+        heightValid = self.__targetHeight >= 0.5
         toleranceValid = self.__tolerance > 0.0
 
         if(not pathValid):
             rospy.logwarn("CMissionLocal::IsValid: invalid path ('%s')", str(self.__path))
         
         if(not heightValid):
-            rospy.logwarn("CMissionLocal::IsValid: invalid target height (%f)", self.targetHeight)
+            rospy.logwarn("CMissionLocal::IsValid: invalid target height (%f)", self.__targetHeight)
         
         if(not toleranceValid):
             rospy.logwarn("CMissionLocal::IsValid: invalid tolerance (%f)", self.__tolerance)
@@ -61,6 +61,14 @@ class CMission:
         rospy.loginfo("CMission: reset is done!")
         return True
 
+    ## Returns current target height value
+    def GetHeight(self):
+        return self.__targetHeight
+    
+    ## Returns current flight tolerance value
+    def GetTolerance(self):
+        return self.__tolerance
+
     def Update(self):
         if(self.__curIdx >= len(self.__path)):
             # Last point is reached
@@ -71,7 +79,7 @@ class CMission:
         prevPt = self.__path[self.__curIdx - 1]
 
         # Set target position
-        self.__movCtrl.SetPos(trgPt[0], trgPt[1], self.targetHeight)
+        self.__movCtrl.SetPos(trgPt[0], trgPt[1], self.__targetHeight)
 
         # Set target yaw
         dx = trgPt[0] - prevPt[0]
@@ -99,9 +107,9 @@ class CMission:
         rospy.loginfo("CMissionLocal: mission updated (hash = %#08x)", self.hash)
 
     def __onHeightChanged(self, height):
-        self.targetHeight = height.value
-        self.__movCtrl.SetParam("MIS_TAKEOFF_ALT", 0, self.targetHeight)
-        rospy.loginfo("CMissionLocal: target height updated (%f)", self.targetHeight)
+        self.__targetHeight = height.value
+        self.__movCtrl.SetParam("MIS_TAKEOFF_ALT", 0, self.__targetHeight)
+        rospy.loginfo("CMissionLocal: target height updated (%f)", self.__targetHeight)
 
     def __onToleranceChanged(self, tolerance):
         self.__tolerance = tolerance.value

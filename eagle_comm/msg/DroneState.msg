@@ -9,6 +9,9 @@ int8 globalPos
 float32 charge
 
 uint32 missionHash
+float32 height
+float32 tolerance
+float32 density
 uint32 cloudSize
 
 int8 armed

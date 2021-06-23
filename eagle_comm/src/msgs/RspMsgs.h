@@ -34,10 +34,15 @@ DECLARE_MSG(RSP_DRONE_STATE, SRspDroneState,
 
     // Service data
     ESystemState systemState;
-    uint32_t missionHash;
     uint32_t cloudSize;
     bool bArmed;
     float charge;
+
+    // Mission params
+    uint32_t missionHash;
+    float height;
+    float tolerance;
+    float density;
 )
 
 DECLARE_MSG(RSP_CLOUD_CHUNK, SRspCloudChunk,
