@@ -10,6 +10,8 @@
         <param name="rate" type="int" value="100"/>
         <param name="lidar_fov_deg" type="double" value="270"/>
         <param name="lidar_effective_fov_deg" type="double" value="160"/>
-        <param name="lidar_claster_size" type="int" value="1"/>
+        <param name="lidar_claster_size" type="int" value="4"/>
+        <param name="lidar_blind_angle" type="double" value="50"/>
+        <param name="lidar_blind_angle_width" type="double" value="10"/>
     </node>
 </launch>

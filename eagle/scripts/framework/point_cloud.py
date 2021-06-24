@@ -9,7 +9,6 @@ from sensor_msgs.msg import PointCloud as LidarPointCloud
 from eagle_comm.msg import PointCloud as OutputPointCloud
 from geometry_msgs.msg import Vector3
 from eagle_comm.msg import GsCmdFloat
-from geometry_msgs.msg import Point32 # RVIZ debug
 
 ################################################################################
 ## A class for the map point cloud management.
@@ -41,12 +40,9 @@ class CPointCloud:
     def __init__(self, lidar : CLidar):
         self.__lidar = lidar
         self.__cloud = dict()
-        self.__density = 4.0
+        self.__density = 50.0
         self.__cloudPub = rospy.Publisher("eagle_comm/out/point_cloud", OutputPointCloud, queue_size = 10)
         self.__densitySub = rospy.Subscriber("eagle_comm/in/cmd_density", GsCmdFloat, self.__onDensityChanged)
-
-        self.__cloudDbg = LidarPointCloud() # RVIZ debug
-        self.__cloudDbgPub = rospy.Publisher("eagle/point_cloud", LidarPointCloud, queue_size = 10) # RVIZ debug
     
     ## Get lidar points and fill the cloud
     def UpdateCloud(self):
@@ -64,10 +60,6 @@ class CPointCloud:
             if(not (ptId in self.__cloud)):
                 # Add a new point into the map
                 self.__cloud[ptId] = Vector3(x, y, z)
-                #self.__cloudDbg.points.append(Point32(x, y, z)) # RVIZ debug
-                #self.__cloudDbg.header.frame_id = "map" # RVIZ debug
-                #self.__cloudDbg.header.stamp = now() # RVIZ debug
-                #self.__cloudDbgPub.publish(self.__cloudDbg) # RVIZ debug
 
     ## Density values topic callback
     def __onDensityChanged(self, density):
@@ -80,7 +72,6 @@ class CPointCloud:
     ## Clear the cloud
     def Reset(self):
         self.__cloud = dict()
-        self.__cloudDbg = LidarPointCloud() # RVIZ debug
 
     ## Returns num of points in the cloud
     def GetSize(self):

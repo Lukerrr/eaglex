@@ -180,6 +180,10 @@ def Deg2Rad(angle):
 def Rad2Deg(angle):
     return np.degrees(angle)
 
+## Check equality with tolerance
+def Equal(n1, n2, tol):
+    return abs(n1 - n2) <= tol
+
 ##
 # Calculates vector in cartesian coordinates (x, y | meters)
 # from p1 to p2 in geographical coordinates (latitude, lontitude | degrees)
