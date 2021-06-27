@@ -76,6 +76,8 @@ class CSystem:
             ESystemState.WORKING: "OFFBOARD",\
             ESystemState.LANDING: "OFFBOARD"\
         }
+        self.__modeSetForce = False
+        self.__modeSetIsDone = False
         self.__takeoffPos = None
         self.__landingPos = None
         self.__armSub = rospy.Subscriber("eagle_comm/in/cmd_arm", GsCmdSimple, self.__onCmdArm)
@@ -126,10 +128,13 @@ class CSystem:
                     self.__setState(ESystemState.DISCONNECTED)
 
             # Check is flight mode valid
-            requiredMode = self.__stateModes.get(self.__systemState)
-            curMode = self.__movCtrl.simState.mode
-            if(requiredMode != None and curMode != requiredMode):
-                self.__movCtrl.SetMode(requiredMode)
+            if(not self.__modeSetIsDone or self.__modeSetForce):
+                requiredMode = self.__stateModes.get(self.__systemState)
+                curMode = self.__movCtrl.simState.mode
+                if(requiredMode != None and curMode != requiredMode):
+                    self.__movCtrl.SetMode(requiredMode)
+                else:
+                    self.__modeSetIsDone = True
 
             if(dt > 0.0):
                 # State DISCONNECTED
@@ -187,6 +192,7 @@ class CSystem:
         if(self.__systemState != st):
             rospy.loginfo("CSystem::setState: %s -> %s", self.__systemState.name, st.name)
             self.__systemState = st
+            self.__modeSetIsDone = False
         else:
             rospy.loginfo("CSystem::setState: '%s' state loop ignored", st.name)
 
