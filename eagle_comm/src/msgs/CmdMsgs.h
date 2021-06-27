@@ -31,11 +31,9 @@ DECLARE_MSG(CMD_MISSION, SCmdMission,
         double x;
         double y;
     };
-
-    uint32_t hash;
-    uint32_t pathSize;
-    
     static const int pathMaxSize = 128; 
+
+    uint32_t pathSize;
     Point path[pathMaxSize];
 )
 

@@ -40,6 +40,50 @@ CCommunicator::~CCommunicator()
     Invalidate();
 }
 
+CCommunicator::SRawPacket::~SRawPacket()
+{
+    if(payload != NULL)
+    {
+        delete[] payload;
+    }
+}
+
+bool CCommunicator::ConstructPacket()
+{
+    if(m_curPacket.type == CMD_MAX)
+    {
+        // Begin construct packet
+        int dataLen = RecvInternal(m_clSock, (char*)&m_curPacket.type, sizeof(m_curPacket.type));
+        if(dataLen <= 0)
+        {
+            // No data or an error occured
+            return false;
+        }
+
+        m_curPacket.requiredSize = GetCmdDataSize(m_curPacket.type);
+        if(m_curPacket.requiredSize == 0)
+        {
+            // No payload required
+            return true;
+        }
+        m_curPacket.payload = new uint8_t[m_curPacket.requiredSize];
+    }
+
+    // Continue construct packet
+    size_t remainSize = m_curPacket.requiredSize - m_curPacket.curSize;
+    int dataLen = RecvInternal(m_clSock, (m_curPacket.payload + m_curPacket.curSize), remainSize);
+
+    if(dataLen == -1)
+    {
+        // An error occured
+        return false;
+    }
+
+    m_curPacket.curSize += dataLen;
+
+    return m_curPacket.curSize == m_curPacket.requiredSize;
+}
+
 void CCommunicator::Update()
 {
     if (!m_bIsValid)
@@ -53,45 +97,21 @@ void CCommunicator::Update()
     if (m_clSock != -1)
     {
         // Read all received packets
-        int dataLen = 0;
-        do
+        while(ConstructPacket())
         {
-            ECmdType cmdType;
-            dataLen = RecvInternal(m_clSock, &cmdType, sizeof(cmdType));
-
-            if (dataLen == 0)
+            if(m_curPacket.type < CMD_MAX)
             {
-                ROS_INFO_NAMED(LOG_NAME, "Communicator: Ground station %d disconnected", m_clSock);
-
-                // Client disconnected
-                close(m_clSock);
-                m_clSock = -1;
+                m_cmdHandler.Invoke(m_curPacket.type, m_curPacket.payload);
             }
-            else if (dataLen > 0 && cmdType < CMD_MAX)
-            {
-                // Call command handler
-                uint8_t *cmdData = NULL;
-                size_t dataSize = GetCmdDataSize(cmdType);
-                if(dataSize > 0)
-                {
-                    cmdData = new uint8_t[dataSize];
-                    RecvInternal(m_clSock, cmdData, dataSize);
-                }
-                m_cmdHandler.Invoke(cmdType, cmdData);
 
-                if(cmdData != NULL)
-                {
-                    delete[] cmdData;
-                }
+            ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", m_curPacket.type);
 
-                ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", cmdType);
-            }
-        } while (dataLen > 0);
+            m_curPacket = SRawPacket();
+        }
     }
     else
     {
         // Waiting for a new client
-
         sockaddr_in clAddr;
         socklen_t clAddrLen = sizeof(clAddr);
 

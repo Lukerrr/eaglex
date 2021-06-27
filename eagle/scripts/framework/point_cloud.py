@@ -40,7 +40,7 @@ class CPointCloud:
     def __init__(self, lidar : CLidar):
         self.__lidar = lidar
         self.__cloud = dict()
-        self.__density = 50.0
+        self.__density = 5.0
         self.__cloudPub = rospy.Publisher("eagle_comm/out/point_cloud", OutputPointCloud, queue_size = 10)
         self.__densitySub = rospy.Subscriber("eagle_comm/in/cmd_density", GsCmdFloat, self.__onDensityChanged)
     

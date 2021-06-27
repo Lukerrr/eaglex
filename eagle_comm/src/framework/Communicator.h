@@ -8,6 +8,15 @@
 
 class CCommunicator : public TSingleton<CCommunicator>
 {
+    struct SRawPacket
+    {
+        ~SRawPacket();
+
+        ECmdType type = CMD_MAX;
+        uint8_t* payload = NULL;
+        size_t requiredSize = 0;
+        size_t curSize = 0;
+    };
 public:
     CCommunicator();
     ~CCommunicator();
@@ -21,6 +30,8 @@ private:
     bool Initialize();
     void Invalidate();
 
+    bool ConstructPacket();
+
     int RecvInternal(int socket, void* buf, size_t len);
     void SendInternal(char* pData, int len);
 
@@ -32,6 +43,8 @@ private:
     int m_clSock = -1;
 
     bool m_bIsValid = false;
+
+    SRawPacket m_curPacket;
 };
 
 template<typename T>

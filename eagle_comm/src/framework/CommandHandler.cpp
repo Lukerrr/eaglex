@@ -1,6 +1,7 @@
 #include "CommandHandler.h"
 #include "CmdMsgs.h"
 #include "Log.h"
+#include "Crc32.h"
 
 #include "ros/ros.h"
 #include "eagle_comm/GsCmdSimple.h"
@@ -96,7 +97,7 @@ void OnCmdMission(void* data)
         msg.path.push_back(pose);
     }
 
-    msg.hash = missionData.hash;
+    msg.hash = GetCrc32((uint8_t*)missionData.path, missionData.pathSize * sizeof(SMissionData::Point));
     s_missionPub.publish(msg);
 }
 
