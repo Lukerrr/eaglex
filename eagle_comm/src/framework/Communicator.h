@@ -29,6 +29,7 @@ public:
 private:
     bool Initialize();
     void Invalidate();
+    void DisconnectClient();
 
     bool ConstructPacket();
 
@@ -36,6 +37,8 @@ private:
     void SendInternal(char* pData, int len);
 
     uint16_t m_port;
+    uint64_t m_timeout;
+    uint64_t m_lastDataStamp;
 
     CCommandHandler m_cmdHandler;
 

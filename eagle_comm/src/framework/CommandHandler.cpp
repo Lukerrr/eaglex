@@ -134,6 +134,10 @@ void CCommandHandler::Invoke(ECmdType type, void* data)
 {
     if(type < CMD_MAX)
     {
-        m_handlers[type](data);
+        TCmdHandler handler = m_handlers[type];
+        if(handler != NULL)
+        {
+            handler(data);
+        }
     }
 }

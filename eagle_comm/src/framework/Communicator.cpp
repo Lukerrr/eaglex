@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 
 #define CONN_PORT_DEF 54000
+#define CONN_TIMEOUT_DEF 5000
 #define CONN_MAX_CLIENTS 1
 
 size_t GetCmdDataSize(ECmdType type)
@@ -23,16 +24,23 @@ size_t GetCmdDataSize(ECmdType type)
     case CMD_DENSITY:           return sizeof(SCmdDensity);
     case CMD_GET_CLOUD:         return sizeof(SCmdGetCloud);
     case CMD_MISSION:           return sizeof(SCmdMission);
+    case CMD_HEARTBEAT:         return sizeof(SCmdHeartbeat);
     default:
         return 0;
     }
 }
 
+inline uint64_t Millis()
+{
+    return ros::Time::now().toNSec() / 1000000;
+}
+
 CCommunicator::CCommunicator()
 {
     ros::NodeHandle nh("~");
-    int port = nh.param("port", CONN_PORT_DEF);
-    m_port = port;
+    m_port = nh.param("port", CONN_PORT_DEF);
+    m_timeout = nh.param("timeout", CONN_TIMEOUT_DEF);
+    m_lastDataStamp = 0;
 }
 
 CCommunicator::~CCommunicator()
@@ -99,14 +107,20 @@ void CCommunicator::Update()
         // Read all received packets
         while(ConstructPacket())
         {
-            if(m_curPacket.type < CMD_MAX)
+            m_lastDataStamp = Millis();
+            if(m_curPacket.type < CMD_HEARTBEAT)
             {
                 m_cmdHandler.Invoke(m_curPacket.type, m_curPacket.payload);
+                ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", m_curPacket.type);
             }
 
-            ROS_INFO_NAMED(LOG_NAME, "Communicator: received command %d", m_curPacket.type);
-
             m_curPacket = SRawPacket();
+        }
+
+        if(Millis() - m_lastDataStamp > m_timeout)
+        {
+            ROS_WARN_NAMED(LOG_NAME, "Communicator: disconnecting on timeout...");
+            DisconnectClient();
         }
     }
     else
@@ -121,6 +135,7 @@ void CCommunicator::Update()
         {
             ROS_INFO_NAMED(LOG_NAME, "Communicator: Connected to a ground station '%s:%d' (%d)",
                            inet_ntoa(clAddr.sin_addr), clAddr.sin_port, m_clSock);
+            m_lastDataStamp = Millis();
         }
     }
 }
@@ -212,10 +227,16 @@ void CCommunicator::Invalidate()
 
     if (m_clSock != -1)
     {
-        shutdown(m_clSock, SHUT_RDWR);
-        close(m_clSock);
-        m_clSock = -1;
+        DisconnectClient();
     }
 
     m_bIsValid = false;
+}
+
+void CCommunicator::DisconnectClient()
+{
+    ROS_INFO_NAMED(LOG_NAME, "Communicator: disconnecting client");
+    shutdown(m_clSock, SHUT_RDWR);
+    close(m_clSock);
+    m_clSock = -1;
 }

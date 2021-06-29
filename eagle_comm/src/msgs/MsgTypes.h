@@ -14,8 +14,8 @@ enum ECmdType : EMsgType
     CMD_TOLERANCE,
     CMD_DENSITY,
     CMD_GET_CLOUD,
-
     CMD_MISSION,
+    CMD_HEARTBEAT,
 
     CMD_MAX,
 };
